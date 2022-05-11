@@ -1,0 +1,29 @@
+
+udf提权原理分析：
+udf = 'user defined function'，即‘用户自定义函数’。
+是通过添加新函数，对MYSQL的功能进行扩充，性质类似使用本地MYSQL函数如abs()或concat()。
+udf在mysql5.1以后的版本中，存在于‘mysql/lib/plugin’目录下，文件后缀为‘.dll’，常用c语言编写。
+
+如何使用udf?
+
+假设我的udf文件名为‘udf.dll’，存放在Mysql根目录(通过select @@basedir可知)的‘lib/plugin’目录下。
+在udf中，我定义了名为sys_eval的mysql函数，可以执行系统任意命令。
+如果我现在就打开mysql命令行，使用select sys_eval('dir');的话，系统会返回sys_eval()函数未定义。
+因为我们仅仅是把‘udf.dll’放到了某个文件夹里，并没有引入。类似于面向对象编程时引入包一样，如果没有引入包，那么这个包里的类你是用不了的。
+故，我们应该把‘udf.dll’中的自定义函数引入进来
+
+
+
+CREATE FUNCTION sys_eval RETURNS STRING SONAME 'udf.dll';
+只有两个变量，一个是function_name(函数名)，我们想引入的函数是sys_eval。还有一个变量是shared_library_name(共享包名称)，即‘udf.dll’。
+至此我们已经引入了sys_eval函数，下面就是使用了。
+这个函数用于执行系统命令，用法如下：
+select sys_eval('cmd command');
+我觉得sys_eval()这个函数就是自定义的，名字随便。但里面实现是调用任意系统命令。
+网上说：对于sys_eval()函数，其中的指令是直接以管理员的权限运行的.
+我理解mysql机制是对于udf这种是默认管理员权限运行。我认为多半还是需要mysql的写入权限。
+
+当 MySQL=< 5.1 版本时，将 .dll 文件导入到 c:\windows 或者 c:\windows\system32 目录下
+当 MySQL> 5.1 版本时，将 .dll 文件导入到   mysql根目录\lib\plugin\     目录下 (lib\plugin目录默认不存在，需自行创建)
+
+mysql中有现成的udf文件。

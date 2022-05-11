@@ -1,0 +1,484 @@
+linux基础知识：
+shell：linux运行命令的环境和解释器。
+
+内核的实现和系统调用是由操作系统来完成的。
+
+linux中一切都是文件。
+linux操作系统=linux内核+系统基本库+应用程序。
+
+xx.yy.zz
+内核主版本号.次版本号.修订版本号
+注：次版本号为奇数代表开发版，次版本号为偶数代表稳定版。
+
+
+linux命令解释器：
+1.执行基础的命令：
+/usr/bin
+/bin/sh
+2.能执行高级的命令：
+/bin/bash		//默认。
+3.更友好：
+/usr/bin/csh
+/usr/bin/ksh
+/usr/bin/ksh
+
+关机：
+shutdown -h now	//关机
+shutdown -h 8:30	//8:30关机
+shutdown -h +10	//10分钟后关机
+
+重启：
+shutdown -r now
+reboot
+
+sync	//将内存中的数据写入磁盘
+
+
+
+
+
+
+linux常用命令：
+1.版本信息：
+uname -a		//查看版本号
+w		//查看连接的终端信息
+uname -m	//查看主机的处理器架构
+cat /proc/version	//查看linux版本信息
+
+2.文件和目录命令：
+ls命令：所在路径：/bin/ls
+	-al	长格式显示包括隐藏文件
+	-d	显示目录本身的属性
+	-h	以易读的形式显示信息;常用 -hl
+	-R	递归显示
+	--color	以颜色区分不同类型文件
+
+mkdir -p  test1/test2/test3	//递归创建文件夹
+
+删除文件或文件夹：
+rm -rf 目标	//最常用
+
+
+file z.txt		//查看文件类型
+
+cp命令：复制文件或文件夹
+	-a	//保留文件属性，且递归复制目录
+	-f	//已存在目标文件也不提示
+	-r	//递归复制
+mv命令：移动文件或文件夹
+	-f	//即使已存在目标文件也不提示
+
+ln命令：创建软链接
+ln -s /opt/z.txt w.html	//对文件创建软链接(快捷方式名为w.html)
+ln -s /opt/muluz kz.txt	//对目录创建软链接(起名随便)
+
+
+locate命令：是从数据库中找。
+最好先更新数据库：updatedb
+locate passwd	//从数据库中筛选绝对路径中带有passwd关键字的路径。
+
+find命令：
+常用：
+find /root -name "wz6.xml"	//从/root目录开始，查找目录或文件名完全匹配后面的正则的目标。
+find ./ -size +10M		//查找当前目录下，文件或目录大小>10M的目标。
+同理，c、k、M、G；+、-
+find /home -mtime -2	//在/home目录下查找2*24小时内改动过的文件或目录
+
+grep命令：文件中查找。
+	-i	忽略大小写
+	-n	显示匹配行和行号
+常用命令：
+grep -n "^w" q.txt		//查找q.txt中以w开头的行。
+grep -n "^k" q.txt		//查找q.txt中以k结尾的行。
+grep -n "[Ss]igna[Ll]" q.txt	//查找q.txt中匹配4种之一的行。
+grep -n "^w" q.txt	-v	//查找q.txt中不以w开头的行(-v即取反)。
+
+.	匹配一个非换行字符
+
+
+文件查看命令：
+cat
+less	//一页一页显示内容
+head -n 2 q2.txt 	//显示q2.txt文件前2行
+tail -n 2 q2.txt 	//显示q2.txt文件后2行
+
+wc命令：统计字节数、行数等。
+	-c	字节数
+	-l	行数1
+	-m	字符数
+	-w	字数，该字定义为由空白、换行等分隔的字符串
+
+
+sort命令：对文件内容排序。
+	-n	//按数值大小排序(一般按首字母，若是数字，则按大小)
+	-r	//降序
+
+
+uniq命令：检测文本文件中重复出现的行列。该命令一般都配合sort使用。
+uniq z.txt		//删除重复行后输出，若重复行不相邻，则不行。故配合sort使用。
+如：sort z.txt | uniq
+uniq -c z.txt	//显示该行重复出现的次数
+-d		//仅显示重复出现的行
+-u		//仅显示出现一次的行
+
+
+awk命令：内容提取、文本分析。
+eg：
+awk '{print $1,$4}'  y.txt	//目标文件的每一行为单位，每行以空格或TAB为分隔符，输出第一项、第四项(默认从1开始)。
+awk -F "i"  '{print $1,$4}'  y.txt		//指定每行的分隔符为字母i
+awk '{printf "%-10s %16s\n",$1,$4}'  y.txt	//格式化输出
+
+awk 'BEGIN{FS=","} {print $1,$2}' y.txt	//FS相当于内置的变量，赋值，表示分隔符。
+awk -F '[ ,]'  '{print $1,$2,$5}'   y.txt	//先用空格分割，结果再用","分割。即将每一行多次分割完毕后，在执行后面的代码。
+eg：awk -F '["h",]'  '{print $1,$2,$5}'   y.txt	//先使用字母h分割，再使用逗号分割。
+
+
+
+awk -va=6 '{print $1,$1+a}'   y.txt 	//-v定义变量；若数字，则+6，若字母什么的，则为0+6，相当于执行c代码。
+awk -va=1 -vb=s '{print $1,$1+a,$1b}' y.txt	//数字和字母拼接，直接为字符串。
+
+awk -f cal.awk log.txt	//执行指定脚本
+awk '$1>2'   y.txt 		//过滤第一列>2的行。若为str类型，则$1为0.
+
+awk '$1>2 && $2=="Are" {print $1,$2,$3}' y.txt 	//过滤第一列大于2并且第二列等于'Are'的行
+
+常用：
+awk -F ":"  '$3==0 {print $1}'  /etc/passwd		//查看特权用户
+awk -F ":"  'length($2)==0 {print $1}'  /etc/shadow	//查看空口令用户
+
+
+linux的密码hash一般在/etc/shadow文件中。
+
+
+
+
+curl命令：
+curl https://www.baidu.com		//发起get请求
+curl -d 'login=emma&password=123' -X POST https://www.baidu.com/zqz.php
+其中-d指定post请求正文内容 -X指定请求方式为POST
+
+curl  -F "file=@/root/Desktop/p1.txt"  -X POST  http://192.168.43.132/upload.php   -v
+//上传本地文件到目标站点；-v显示请求和响应。其中file是目标php文件自定义的参数，默认一般是file
+
+curl https://www.baidu.com/ftp/z.zip	/root/Desktop/qwz.zip	//下载文件
+
+curl file:///root/Desktop/testq/cs1.txt  	//读取本地文件。
+
+-b "name=test&passwd=123456"	//指定cookie
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+$0	表示当前行
+$1	表示每行第一个字段
+
+
+注：代码外部只能是单引号
+
+
+
+
+
+vim重点：
+三种模式：
+一般模式(刚进入时)；编辑模式(按i等字符进入)；命令模式(按:等字符进入)。 
+
+
+一般模式常用命令：
+i和I
+a和A
+o和O
+
+x	删除光标处的字符
+X	删除光标前的字符
+dd	删除光标所在行
+d$或D	删除光标到行尾的字符
+d0	删除光标前一个字符到行首的内容
+
+复制命令：
+yy	复制光标所在整行
+y$或Y	复制光标到行尾的字符
+y0	复制光标前一个字符到行首的内容
+
+p和P	粘贴
+
+
+:set nu	显示行号
+:set nonu	不显示行号
+
+sort zasdw.txt | uniq -d -c	//先排序在去重。 -d显示重复项。-c显示重复的次数。
+
+
+
+文件权限：
+文件类型、文件所有者、文件所有组、其他用户。       
+文件所有者、文件所有组、文件大小
+
+
+若文件类型为目录，则数字表示目录下的子目录数。
+
+权限通用命令：
+chmod 744 z.txt	//数字表示法。
+
+常用：
+ls -alh
+
+
+chown命令：改变文件或目录的归属
+-R	递归
+eg：
+chown kali q.txt 		//将该文件的所属改为kali用户
+chown kali:kali q.txt  	//改变该文件归属为kali用户，kali组。
+
+粘贴位权限(默认权限一般为777)：
+主要为公共目录设置，权限字符为"t"  用户不能删除该目录中其他用户的文件。
+如：/tmp
+
+
+
+账户安全：
+用户账号：
+UID=0		//超级用户 root
+UID为500-60000	//普通用户(新系统为1000以上)
+UID为1-499	//伪用户、程序用户。新系统为1-999
+组账号：
+UID	用户标识符
+GID	组标识符
+
+用户信息：
+/etc/passwd	基本信息
+/etc/shadow	密码hash
+组信息：
+/etc/group	基本信息
+/etc/gshadow	密码hash
+
+
+john破解：
+第一步：准备源文件：
+unshadow /etc/passwd  /etc/shadow > shadz.txt
+或
+cat /etc/shadow > z.txt
+整合。
+第二步：准备字典：
+一行一个，后缀为dic
+
+结果保存在.john/john.pot中。
+
+最好生成社工字典。
+社工字典生成地址：
+https://github.com/zgjx6/SocialEngineeringDictionaryGenerator
+http://xingchen.pythonanywhere.com/index
+第三步：爆破。
+1.简易模式：使用pass.txt继续变换。
+结果查询：
+linux一般在~/.john/john.pot文件；
+windows一般在当前目录的john.pot文件
+或 john --show 爆破文件名
+
+此法不适用于yescrypt加密算法：
+unshadow /etc/passwd /etc/shadow > z.txt
+john --single z.txt
+
+爆破yesdecrypt加密算法：
+unshadow /etc/passwd /etc/shadow > z.txt
+john -w passwd.txt z.txt --format=crypt
+john --show z.txt
+爆破成功。
+
+groupadd命令：添加组账号
+groupadd [-g GID] 组名	
+如：
+groupadd -g 8328 testq2  	//自定义GID，添加testq2组
+
+
+cat /etc/group	//查看所有组
+
+添加用户：
+1.指令添加用户：
+useradd	test1	//新添加用户test1
+passwd	test1	//修改test1用户的密码
+默认家目录在：/home/test1
+useradd常用选项：
+	-u	//指定UID
+	-d	//指定宿主目录
+	-g	//指定基本组名
+	-G	//添加附加组名，若多个则逗号隔开
+	-s	//指定用户的登录shell
+如：useradd -u 1019 -d /home/testw4 -s  /bin/bash   testw4
+
+
+cat /etc/passwd	//查看所有用户
+
+
+usermod命令：修改用户属性。
+	-l	//更改该账号登录名(L的小写)
+	-L	//锁定该账户
+	-U	//解锁该账户
+通过cat /etc/shadow查看是否锁定。
+!!	一般表示被锁定，且密码为空
+!密码	一般表示设定了密码且被锁定
+
+
+userdel -r test1	//删除test1账户，且删除该账户的宿主目录。
+
+
+
+
+id		//查看身份标识
+groups test1	//查看test1用户所属组
+finger [-l] test1	//查看test1用户详细信息
+
+
+users		//显示当前登录系统的所有用户的用户列表。
+
+–wordlist=FILE
+常用命令：
+john -w paswd.dic mubiao.txt			//指定字典爆破
+john –wordlist=passwd.dic -rules shadow.txt	//使用规则对字典文件进行混淆后再爆破
+规则在john.ini中定义。
+
+
+
+
+
+linux守护进程(daemon)：在后台运行的特殊进程。大部分普通进程或服务运行的基础。
+sshd：openssh服务器守护进程。
+smb、mysqld、iptables、httpd、vsftpd等。
+
+
+
+特别重要的指令：man
+英文要好。
+man ls | grep version
+
+
+
+
+查看网络状态：
+netstat命令：
+	-a	//显示所有
+	-n	//尽量显示数字、ip等
+	-t	//仅显示tcp相关
+	-o	//显示计时器
+
+	-l	//仅列出处于listen状态的服务或进程
+	-p	//显示建立连接的相关程序名
+
+
+查看进程：
+ps -aux	常用
+
+
+top	//显示资源占用情况
+
+应急响应：
+1.挖矿主要吃cpu。
+2.看网络、cpu等占用情况。 其他异常明显特征，如频繁的网络请求。
+3.看定时任务。
+
+
+
+
+/bin/bash q2.sh  & 		//使脚本在后台运行，一般关闭该终端就会结束
+jobs			//查看后台运行的命令
+后面加&则变后台任务。
+ctrl+z则是暂停前台任务。
+bg命令：使最近一个暂停的任务在后台继续执行。
+
+shopt | grep huponexit	//查看该参数值
+huponexit参数默认关闭，若打开，则session(终端)退出，一般后台任务也会结束。
+一般一个session对应一个终端。
+
+disown命令：将指定命令从后台列表中移除(jobs的返回)。则
+disown 2340	//将对应ID的后台任务移除。该后台任务却不会收到SIGNUP信号。
+
+更好的办法1：
+/bin/bash q2.sh > stdout.txt 2> stderr.txt < /dev/null &
+disown
+
+更好的办法2：
+nohup /bin/bash q2.sh
+
+screen命令：即在当前session里新建另一个session。当前session(终端)退出后，不影响新建的session，且可以重连。
+
+新建一个session：
+# screen
+# /bin/bash q2.sh	//即该进程在新的session中运行
+
+再按ctrl+a和ctrl+d回到原来session。
+
+screen -r		//切回新建的session
+scree -S zdyname	//为session指定名字
+
+切回指定session：
+screen -r name
+screen -r pid_number
+
+列出所有session：
+screen -ls
+
+
+停掉或kill某个session：
+先切回，再按ctrl+c和ctrl+d.
+
+
+
+tmux命令：比screen更强。
+tmux ls	//查看已创建的会话
+
+返回原来的session：
+tmux detach或按ctrl+b和d
+
+下次登录时，返回后台的前一个session：
+tmux attach
+
+
+新建session：
+tmux new -s session_name
+
+切换到指定session：
+tmux attach -t session_name
+
+杀死指定session：
+tmux kill-session -t session-name
+
+
+
+
+
+linux日志：
+/var/log/message	//记录应用程序等信息
+/var/log/secure	//记录用户登录认证相关信息
+/var/log/wtmp	//记录用户登录、注销、启动等信息
+/home/用户名/.bash_history	//用户操作命令日志信息
+/var/log/lastlog	//最近成功登录和不成功登录
+/var/log/faillog	//记录用户登录失败信息
+/var/log/auth.log	//用户认证、授权等日志
+/var/log/daemon	//系统守护进程日志
+
+
+w/who命令主要是读取/var/run/utmp文件信息。
+w	//查询utmp文件且显示当前系统的每个用户及其运行的进程信息。
+who	//查询utmp文件且输出当前登录的每个用户信息
+
+last/lastlog/lastb命令主要是读取/var/log/btmp文件信息。
+last	//查看本地计算机用户登录信息
+lastlog	//显示系统所有用户最近一次登录信息
+	-b <天数>	//该天数之前的登录
+	-t <天数>		//该天数之后的登录
+	-u <用户名>	//显示该用户的最近登录
+lastb	//查询登录失败的用户信息
+

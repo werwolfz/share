@@ -1,0 +1,118 @@
+
+fiddler和charles
+burp对js劫持等处理不太好。burp容易漏包。
+
+fiddler默认是8888端口监听。
+工具->选项->网关 一般使用系统代理。
+工具->选项->https->enrypt证书 信任证书 安装证书。 选上无视服务器证书错误，上面进程一般选all.
+
+抓移动端流量：
+tools->options->connection->选上允许远程计算机连接
+证书修改等和burp差不多。
+
+访问http://192.168.43.132:8888也能下载fiddler证书。
+模拟器访问http://192.168.43.132:8888-->卸载httpcarry-->下载fiddler证书-->
+安装该证书-->一般选vpn和应用-->成功抓到https包。
+
+fiddler在安卓7.1以上抓https包：
+修改证书，导入，抓包成功，可能响应需要稍等一下。
+
+fiddler的antoresponse添加rules：
+请求:正则
+响应:匹配。
+
+过滤地方可以只捕获某个进程。
+
+fiddler可以下断点：在请求之前或响应之后。
+
+fiddler劫持js原理：一般需要在下断点在请求前。
+fiddler作为一个中间人，即
+浏览器正常流量-->fiddler(因为有证书，发包、改包等)-->服务器端；
+服务器端正常流量-->fiddler(劫持js，或理解为修改js修改响应包；或者根本不需要服务器端的响应)-->给到客户端；因为js被修改，导致可以执行302到百度等动作。
+如：请求发一个类似
+https://www.aqistudy.cn/js/encrypt_eQRQ9fKJtyS1.min.js?v=1629262501的js文件请求，
+则fiddler可以拦截，然后服务器对此的响应能被自定义的数据(如返回一张图片等)替换。
+设置：
+autoresponder->enable rules->add rule，选择正则的匹配，然后选择下面自定义的响应或文件即可。
+注：新增劫持文件后，一般需重启浏览器。
+
+
+下断点在响应后：即拦截服务器端响应，卡在此处。
+
+fiddler解决无限debugger：
+无限debugger一般是js的死循环等实现的。
+确认debugger位置-->通过f12等搜索debug等关键字-->去掉浏览器的js缓存-->fiddler抓包抓到js文件-->修改js 去掉死循环等-->代码替换：fiddler设置After Responses -->抓包抓到该js文件，将修改后的js文件覆盖-->
+执行Run to Completion-->浏览器打开Netword - Disable cache 钩去掉使浏览器保存我们改动的代码到缓存(刷新不会失效)。-->再去掉fiddler断点。此时已经去掉debugger无限限制。
+
+也能自动替换：设置本地的js文件，正则匹配js文件(或输入js地址)，进行自动替换。
+
+sequensially：设置并发重放多少次请求
+
+fiddler和burp取长补短：fiddler走burp代理。
+fiddler网关设置代理即可。一般需要fiddler重启。
+
+
+
+charles：反向代理和映射比较厉害。
+help->ssl proxying->install charles root cert安装证书-->也能安装在移动端。
+
+chales抓本机浏览器https流量且不乱码：
+help->ssl proxying->install charles root cert安装证书
+proxy-->SSL proxying settings-->选上ennable ssl proxying-->include添加-->
+host和port一般都写*-->ok.
+如此成功。
+
+本机代理一般只要能上网就行，关键在于charles一般会选上proxy->windows proxy.
+第二种方式：不选proxy->windows proxy，但windows系统代理设置127.0.0.1:8889，也能抓https.
+第三种：windows设置127.0.0.1 8889->charles 然后charles选上proxy->windows proxy，再配置上
+external proxy访问google，则能抓google的包。
+模拟器也是应用，唯一不同，模拟器配置wifi代理为192.168.43.132:8889(charles监听地址)
+
+
+抓移动端数据包：需要proxy setting开启enable transparent http peoxying
+1.抓安卓7.1以下https：
+help->ssl proxying->install charles root cert on mobile安装证书-->模拟器访问http://chls.pro/ssl下载证书。
+安装证书，vpn和应用。
+proxy->点击stop ssl proxying->使其变为start ssl proxying
+proxy->ssl proxying settings-->add(哪些需要ssl证书的校验)，include处一般写* *或* 443
+
+proxy->ssl proxying settings-->client certificates->create secure store创建客户端证书-->
+最后add->Host: *.soul.cn或*  port: *   导入soul apk的p12证书，如此绕过双向认证或ssl pinning之类的。
+这样charles就被对方认为可信。  抓取soul包成功。
+
+charles的map是映射。
+charles启动socks代理，即它在此监听socks连接，对方通过socks去连charles.
+
+2.charles抓安卓7.0以上https包：
+help->ssl proxying->save charles-->q.pem保存证书。
+将其同burp证书相同处理，导入模拟器系统目录。 抓包成功。
+3.charles捕获非443如8081端口的https流量：
+proxy->proxy settings->选上enable socks proxy-->ports处写8081-->ok即可捕获服务器8081端口的流量。
+
+哪些不走代理配置：
+proxy settings->options->bypass处填写地址即可。
+4.配置抓取模拟器访问google的包：
+clash开启allow LAN->charles设置proxy->external proxy settings->配置socks代理 127.0.0.1 7890-->
+一般选上always bypass external for localhost(localhost的代理不走).   成功。
+
+5.bypass ssl pinning：
+其是针对ssl的，但charles可以使其强制走http.
+eg1：有妖气ssl pinning：
+charles抓包看到该apk的url(https://app.u17.com)，但没有其中数据包-->复制url，tools->map remote->enable,add->from写：
+protocol：https 
+host：app.u17.com
+port先不写，自动吧.
+
+map to写：
+protocol：http 
+host：app.u17.com
+port先不写，自动吧.
+选上preserver host in header(自动带上头部)-->OK.
+这种方式值得尝试。 我试了没有，感觉原理就是改包、欺骗服务端而已.
+直接导入证书就行了。
+
+
+map映射到本地也可以。
+
+黑名单：即里面的全部拒绝，其他的一律放过。
+白名单：即里面的全部信任，其他的一律拒绝。

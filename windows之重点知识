@@ -1,0 +1,35 @@
+
+组：
+1.本地组：作用范围仅限于本地这台机器。
+Everyone也是组。
+创建本地组：
+net localgroup 组名 /add	//创建组
+net localgroup 组名 /del	//删除组
+net localgroup 组名 用户名 /add	//把用户添加到某个组
+常用：net localgroup administrators q3$  /add	添加到管理员组.
+
+2.全局组：用于创建域控。
+三类：
+(1)管理员组(Domain Admins)
+(2)用户组(Domain Users)
+(3)域来宾组(Domain Guests)
+3.特别组
+
+
+登录认证：
+一：本地登录。
+二：远程登录认证：
+1. SMB：口令明文传输
+2. LM：口令hash传输，低强度
+3. NTLM：提高口令散列加密强度、挑战/响应机制
+4. Kerberos：为分布式网络提供单一身份验证
+
+SAM：安全账号管理。
+1.运行期锁定、存储格式加密。
+2.仅system账户对其有权限，通过服务进行访问控制。
+3.SAM文件时windows的用户账户数据库，所有的用户的登录名和口令等信息都会保存在该文件中。
+默认存放路径为C:\Windows\System32\config\SAM
+
+
+域控上，账户和口令密文默认保存在%systemroot%\ntds\ntds.dit中。其中包含username、hash、ou、group等。
+%systemroot%表示系统安装路径，如C:\Windows\System32

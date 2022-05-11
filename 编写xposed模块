@@ -1,0 +1,170 @@
+
+
+AES加密算法：
+AES之常见的CBC模式：需要key和iv.
+
+常见的对称加密算法：AES、DES、3DES.
+常见的非对称算法：RSA、DSA.
+常见的的散列算法：SHA、MD5等。
+
+
+
+刷机 面具+edxposed.
+xposed几乎能拦截所有java函数的调用。
+xposed模块开发：java+andriod studio  参考https://www.freebuf.com/articles/terminal/189021.html
+compileOnly：只在编译时有效，不参与打包。
+
+eg1：
+package com.example.hookso;
+
+import de.robv.android.xposed.IXposedHookLoadPackage;
+import de.robv.android.xposed.XposedBridge;
+import de.robv.android.xposed.callbacks.XC_LoadPackage;
+
+public class Hooksoul3 implements IXposedHookLoadPackage {
+    @Override
+    public void handleLoadPackage(XC_LoadPackage.LoadPackageParam loadPackageParam) throws Throwable {
+        XposedBridge.log("hook中");
+    }
+}
+
+
+eg2：仅hook某个应用
+package com.example.hookso;
+
+import de.robv.android.xposed.IXposedHookLoadPackage;
+import de.robv.android.xposed.XposedBridge;
+import de.robv.android.xposed.callbacks.XC_LoadPackage;
+
+public class Hooksoul3 implements IXposedHookLoadPackage {
+    @Override
+    public void handleLoadPackage(XC_LoadPackage.LoadPackageParam loadPackageParam) throws Throwable {
+        if(loadPackageParam.packageName.equals("cn.soulapp.android")) { //app包名 开发者助手查看
+            XposedBridge.log("SOUL hook中"); //若没限制，则一打开就会运行
+        }
+    }
+}
+
+
+eg3：仅hook某个应用的某个类的某个函数。跟进a()发现：
+public String a(String p0){	
+       return this.getStorePassword(p0);
+    }
+和cn.soulapp.android.net.SoulNetworkSDK; 其中cn.soulapp.android.net为包名，SoulNetworkSDK为类名，a()为要hook的函数。
+
+成功获取。
+package com.example.hookso;
+
+import de.robv.android.xposed.IXposedHookLoadPackage;
+import de.robv.android.xposed.XC_MethodHook;
+import de.robv.android.xposed.XposedBridge;
+import de.robv.android.xposed.XposedHelpers;
+import de.robv.android.xposed.callbacks.XC_LoadPackage;
+
+public class Hooksoul3 implements IXposedHookLoadPackage {
+    @Override
+    public void handleLoadPackage(XC_LoadPackage.LoadPackageParam loadPackageParam) throws Throwable {
+        if(loadPackageParam.packageName.equals("cn.soulapp.android")) { //app包名 开发者助手查看
+            //首先要找到需要hook的函数a()  clazz标志该Class的字节码,我觉得直接理解为一个类的实例。
+            final Class<?> clazz=XposedHelpers.findClass("cn.soulapp.android.net.SoulNetworkSDK",loadPackageParam.classLoader);
+            //找到函数，先类，再函数，因为参数无，故只需写一个事件(或回调函数)即可。ctrl多选[一个是函数触发前；一个是函数触发后。]
+            XposedHelpers.findAndHookMethod(clazz, "a",String.class, new XC_MethodHook() {
+                @Override
+                protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                    XposedBridge.log("在hook之前");//XposedBridge.log()是输出到手机xposed日志中。
+                }
+
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+
+                    XposedBridge.log(param.args[0].toString()); //获取传入a()的第一个参数。 如证书的密码获取成功。
+                    XposedBridge.log(param.getResult().toString()); //说白了，就是获取hook的函数的返回值。
+                    XposedBridge.log("在hook之后");
+                }
+            });
+        }
+    }
+}
+
+如 public void a(Context p0,int p1,boolean p2,String p3,String p4,String p5,String p6,String p7,ICodeVerify p8){	
+其中ICodeVerify是一个interface也是一个class. 如何声明这种特殊类型？
+直接找到该类的路径，
+发现：
+-------------
+package com.walid.rxretrofit.interfaces.ICodeVerify;
+import java.lang.Object;
+import java.lang.String;
+
+public interface ICodeVerify extends Object	// class@000dc5
+{
+
+    public boolean checkValid(int p0);
+    public String formatCodeMessage(int p0,String p1);
+}
+---------------
+
+
+//首先要找到需要hook的函数a()  clazz标志该Class的字节码,我觉得直接理解为一个类的实例。
+            final Class<?> kclazz=XposedHelpers.findClass("cn.soulapp.android.net.SoulNetworkSDK",loadPackageParam.classLoader);
+            //找到函数，先类，再函数，因为参数无，故只需写一个事件(或回调函数)即可。ctrl多选[一个是函数触发前；一个是函数触发后。]
+            //eg2 hook构造函数 一个类一般一个构造函数，若无参数，直接不写。
+
+            //ICodeVerify就是类名 这是hook的函数中如何声明特殊函数(如接口类) hook该a()
+            //eg1： public void a(Context p0,int p1,boolean p2,String p3,String p4,String p5,String p6,String p7,ICodeVerify p8){}
+            final Class<?> zcls=Class.forName("com.walid.rxretrofit.interfaces.ICodeVerify",true,loadPackageParam.classLoader);
+
+
+            //直接在最后多添加一个参数String.class,zcls即可
+            XposedHelpers.findAndHookMethod(kclazz, "a", Context.class, int.class, boolean.class, String.class,
+                    String.class, String.class, String.class, String.class, String.class, zcls, new XC_MethodHook() {}
+
+
+
+案例1：将自定义函数替换要hook的某个函数。
+------------------------3s------------
+package com.example.hookso;
+import android.content.Context;
+import de.robv.android.xposed.IXposedHookLoadPackage;
+import de.robv.android.xposed.XC_MethodHook;
+import de.robv.android.xposed.XC_MethodReplacement;
+import de.robv.android.xposed.XposedBridge;
+import de.robv.android.xposed.XposedHelpers;
+import de.robv.android.xposed.callbacks.XC_LoadPackage;
+
+public class Hooksoul3 implements IXposedHookLoadPackage {
+    @Override
+    public void handleLoadPackage(XC_LoadPackage.LoadPackageParam loadPackageParam) throws Throwable {
+        if(loadPackageParam.packageName.equals("cn.soulapp.android")) { //app包名 开发者助手查看
+            //首先要找到需要hook的函数a()  clazz标志该Class的字节码,我觉得直接理解为一个类的实例。
+            final Class<?> kclazz=XposedHelpers.findClass("cn.soulapp.android.net.SoulNetworkSDK",loadPackageParam.classLoader);
+            //找到函数，先类，再函数，因为参数无，故只需写一个事件(或回调函数)即可。ctrl多选[一个是函数触发前；一个是函数触发后。]
+            //eg2 hook构造函数 一个类一般一个构造函数，若无参数，直接不写。
+
+            //ICodeVerify就是类名 这是hook的函数中如何声明特殊函数(如接口类) hook该a()
+            //eg1： public void a(Context p0,int p1,boolean p2,String p3,String p4,String p5,String p6,String p7,ICodeVerify p8){}
+            final Class<?> zcls=Class.forName("com.walid.rxretrofit.interfaces.ICodeVerify",true,loadPackageParam.classLoader);
+
+            //这鬼东西，参数里面就是一个函数，相当于action。
+            XC_MethodHook.Unhook wdz=XposedHelpers.findAndHookMethod(kclazz,"a" ,String.class, new XC_MethodReplacement() {
+                @Override //重写
+                //注：当重写的函数输入和输出和原函数若不太相同，则可能会出现各种bug. 终于实现成功了。Bingo!
+                protected Object replaceHookedMethod(MethodHookParam methodHookParam) throws Throwable {
+                    //括号里直接写要实现的代码即可，其他的根本不用管。
+                    XposedBridge.log("test_finished");
+                    return "}%2R+\\OSsjpP!w%X";
+                }
+            });
+        }
+    }
+}
+------------------3e------------------
+
+dex文件是动态加载。
+闪艺的加密与混淆：
+build->build apks即编译为APK文件。在C:\Users\z\AndroidStudioProjects\Hookso\app\build\outputs\apk\debug\下，一般用于调试模式。
+build->general sign apk生成签名->选择apk->NEXT->key store path(签名的路径)->create new->key store path选择路径(如Desktop) 下面是filename->OK
+-->输入密码，组织等随便写->OK->(记不记住passwd无所谓)->next->选择realese(一般不选debug)->勾上v1，v2(提高兼容性)->finish->
+再次选择build->build apks 编译为apk，成功。可能需要build->rebuild一下，再重新编译。
+路径在.\AndroidStudioProjects\Hookso\app\release\下。
+
+长按左键，卸载原来的模块->安装release-apk->成功安装上该模块。

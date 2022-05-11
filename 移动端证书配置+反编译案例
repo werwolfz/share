@@ -1,0 +1,95 @@
+
+证书配置。 http://burp下载证书，导入。
+1.安卓7以下版本抓https：
+	访问http://burp下载证书，导入。通过文件管理器->Download目录->双击导入 命名vpn和应用->抓https包成功。
+2.安卓7以上抓https：
+	安卓7以上的app默认只信任系统证书。
+	绕过：将自定义的证书变为系统证书，再导入到相应的系统目录。
+安卓7以上抓https: 最好使用一加手机刷root.
+此版本只有系统证书才会被信任。
+绕过： 需要root
+将Burp或者Charles的证书作为系统级别的信任证书安装。系统级别的受信任证书以特殊格式存储在/system/etc/security/cacerts文件夹中。我们可以将Burp的证书写入此位置。
+系统只能读PEM格式的证书，后缀为.0
+
+1.拿到burp.der
+openssl x509 -inform DER -in burp.der -out PortSwiggerCA.pem -outform PEM
+openssl x509 -inform PEM -subject_hash_old -in PortSwiggerCA.pem|head -1
+我的值为9a5ba575
+cp PortSwiggerCA.pem <hash>.0
+把PortSwiggerCA.pem命名为9a5ba575.0
+
+windows安装adb(安卓调试桥)：
+使用逍遥模拟器自带的adb. 在MEmu/
+adb devices 显示设备
+默认是127.0.0.1:21513 关闭多余的设备，adb root切换到root
+设置挂载为可读写模式。
+adb connect 127.0.0.1:21513
+adb root
+
+adb remount
+adb push 9a5ba575.0 /system/etc/security/cacerts/9a5ba575.0
+adb shell chmod 644 /system/etc/security/cacerts/9a5ba575.0
+的确在设置-->信任的凭证里找到PortSwigger证书 
+
+安卓7.0以上和7.0以下抓https包成功。
+草料二维码识别二维码的内容。
+
+
+frida堆栈有点大海捞针
+justtrustme原理：hook掉或绕过证书校验。
+需要用什么就查什么。非常值得尝试。
+
+eg1：找到apk的证书。
+解压soul_apk-->证书默认在./assets-->发现p12证书-->apk肯定会读取加载该证书文件，以https双向认证-->gda反编译apk-->搜索str  .p12-->发现KeyStore()-->
+搜索得知ks.load(fis, password);-->跟进password-->跟进sa-->双击进入a()-->跟进getStorePassword()-->发现private native String getStorePassword(String p0);
+-->native：java调用非java的代码(一般由c写成，一般为.so文件)-->进入cinit(类的初始化，java调用类的文件是使用的cinit)看下-->发现：
+static {	
+       System.loadLibrary("soul-netsdk");
+    }
+-->搜索soul-netsdk-->发现该so文件-->反编译拿到证书密码-->IDA加载该so文件-->尝试搜索getStorePasswor-->点击ida左边系列文件 ctrl+f搜索getStorePasswor-->跟进 发现右边好几个疑似密码的东西 尝试-->
+}%2R+\\OSsjpP!w%X
+soul123!@#1ri
+发现有 sa.toCharArray()-->在线编译 输出passwd.toCharArray() 尝试解密证书-->
+}%2R+\OSsjpP!w%X
+soul123!@#1ri
+发现密码为：}%2R+\OSsjpP!w%X
+-->burp导入该证书 user options->TLS->add->域名 发现为Host: api-account.soulapp.cn
+-->输入*.soulapp.cn-->导入成功。发现为200 中文编码设置宋体 utf-8.
+或者通过inspekage hook得到几个疑似密码的东西，多尝试去掉\转义，得到原始字符 尝试成功。
+
+
+
+加密与混淆
+太极xposed框架。 jadx反编译。
+jadx(方便看到声明和调用)打开妖气apk-->搜索p12-->或jadx搜索抓包的特殊参数或字段(如phonecheckcode)-->发现a2.put("phonecheckcode", str2);
+-->跟进str2 查看c()的调用-->跟进str2 发现为Base64.encodeToString(str2.getBytes(), 0), str3) -->则很可能为base64编码.
+爆破6位验证码-->选择brute force模式 0-9  6   6  -->processing添加base64-->下面的url编码，默认只对除数字和字母之外的其他字符编码.
+
+
+闪艺apk编译破解加密-->搜索device_id(或请求的url关键str)-->跟进到k() 发现：
+ public a k(String str, String str2) {
+        this.a.f4567e.put(str, str2);
+        if (this.c && this.f4564d) {
+            str2 = l.a(f4562f, f4563g, str2);
+        }
+        this.a.f4566d.put(str, str2);
+        return this;
+}
+-->很可能就是a() 跟进-->发现很可能是AES-->cbc key，iv  发现：
+private static final String a = "AES/CBC/NoPadding";
+private static final String b = "UTF-8";
+-->看声明 看用例 发现：str2 = l.a(f4562f, f4563g, str2);-->发现：
+f4562f = "WDF#$H*#SJN*&G$&";	key	
+f4563g = "JH&$GF$DR%*K@SC%";	iv	
+在线运行key iv经过str.getBytes("UTF-8")-->(byte[] Str2 = Str1.getBytes();)
+getBytes("UTF-8")参考https://www.tutorialspoint.com/convert-string-to-utf-8-bytes-in-java  这一步其实不需要.
+得到key iv-->其实GDA搜索特殊关键字也能看到具体调用的AES().
+抓包username字段先url解码-->WT-JS解密aes成功。
+
+jsEncrypter0.3.2能将结果返回给到burp.
+
+burp配置socks代理(dns查询勾上，不然域名容易无法找到ip).
+
+
+jeb方便动态调试
+

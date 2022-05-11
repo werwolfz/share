@@ -1,0 +1,431 @@
+python面向对象。
+解释型语言：用到哪就解释编译到哪，一般能跨平台。
+对应的为编译型语言，如c.
+python主要不足：代码无法加密。
+
+#!/usr/bin/python	#手动指定解释器
+#coding=utf-8	#手动指定编码
+print('hello word!')
+
+列表list 有序，能放大多数数据类型，包括函数等。
+元组tuple 有序
+
+创建空集合使用set()		{}是用来创建字典
+set()	tuple()	list()	//相互转换
+s=set()	无序去重
+s.add()	添加；
+s.update() 更改
+s.remove() 移除
+
+dict字典：
+dict1 = {key1:value1,key2,value2}
+key不能重复，value可以重复；key不可变，value可变且可存大部分类型。
+
+迭代器：能记住遍历的位置。只能往前不会往后。
+iter()	next()
+
+使用了yield的函数被称为生成器(generator)，该函数返回一个迭代器。
+每次遇到yield先返回 再从当前位置继续执行后面的代码。
+
+
+函数：*表示tuple  **表示dict
+python可以return多个参数或变量或值。 若一个参数接收，则变为tuple类型。
+如：def zadd(q=6,w=18,tr1=3465,*args,**kwargs):
+其中args为tuple变量，kwargs为dict变量。
+
+匿名函数：
+q1 = lambda a,b:a+b
+print(q1(3,16))
+
+flask框架：实质上只运行了第一个函数，页面显示testqw1，因为访问的是根路径
+---------------------1s--------------------
+from flask import Flask #引入模块
+zname = Flask(__name__) #设置app或网页应用名称。自定义
+@zname.route("/")   #默认设置从根路径开始路由或导航，寻找地址(url地址路径)
+#自定义函数
+def hans1():
+    print('wahaha1')
+    return  "testqw1"
+def hans2():
+    print('wahaha2')
+    return  "testqw2"
+if __name__ == '__main__':
+    zname.debug=True    #开启debug
+    zname.run()     #运行app网站应用  访问http://127.0.0.1:5000即可。
+-------------------------1e--------------------------
+
+import test3	#引入test3.py文件，相当于指针或引用
+test3.zadd(3,8)	#调用其中方法
+
+
+from test3 import sub2	#仅从test3.py引入sub2()函数，相当于复制sub2函数代码到本地
+sub2(8,3)			#直接调用
+
+from test3 import *		#从test3.py文件中导入所有函数
+
+
+if __name__=='__main__':	#即若是当前文件运行，则才执行以下的代码。
+
+
+print('asd{1}wsdf sd dgdsa{0}d'.format('qw1',4656))	#若不写1等数字，则默认按顺序填充
+
+
+文件操作：
+mode默认只读(r)
+常用的：
+r+	读写，最好读时用
+w+	读写，最好写时用，因为会清空。
+a+	追加，读写
+wb+	二进制打开，读写
+ab+	追加、读写、二进制
+
+
+with open('test3.py',encoding='utf-8',mode='r+') as f1:   #会自动close
+    print(f1.readlines())
+或
+f2 = open('test3.py',encoding='utf-8',mode='r+')
+print(f2.readlines()) #或f2.read()
+f2.close()
+
+
+with open('info1.txt','wb+') as f3:	#输入只能是ascii等二进制形式
+    f3.write('dsfdf gfdgsad\n这个世界如何zzz'.encode('utf-8'))
+
+
+q=f4.read(10)	#读10个字节
+q=f4.readline()	#读一行，包括换行符
+q=f4.readlines()	#读所有行并返回列表。list的每个元素包括\n
+q=f4.readlines(500)	#读取行，但总和大约500个字节就停。
+
+
+
+类：
+__siyoubianl	两个下划线开头为私有
+self表示类的实例
+
+函数上一行加上：
+@classmethod	#表示类方法，可以被类本身或实例调用
+如：
+@classmethod #cls代表类本身
+def hello1(cls):    #类方法，故类可以直接调用
+    print("yes6")
+
+@staticmethod #静态方法，可以不带那些特有参数，可以被类本身或实例调用
+def jingtaiz():
+    print('jingtai ma?')
+
+
+
+
+耦合性：即代码和代码之间的关系。最好低耦合，高内聚。
+
+
+
+class kekoukele(kele):	#继承kele类，其对应的实例基本上没任何区别。
+
+
+
+
+python异常处理：
+------------------s2-------------
+try:
+    z=1/2
+    print('w1')
+    print(z)
+except Exception as sbx1:	#发生异常捕获到才执行，否则不执行
+    print('w2')
+    print('发生了异常',sbx1,type(sbx1))
+finally:		#始终都会执行
+    print('Anyway都会运行')
+
+print('wahaha')
+------------------e2------------
+
+
+os库：
+os.environ	#环境变量信息
+os.getcwd()	#获取当前绝对路径
+os.getlogin()	#获取当前登录用户名
+os.getpid()	#获取当前进程PID
+os.getppid()	#获取父进程的PID
+os.chmod(path,mode)	#更改文件权限
+os.chown(path,uid,gid)	#更改文件所有者
+os.path.abspath(path)	#返回对应的绝对路径，如：q2=os.path.abspath('test2.py')
+
+os.path.basename(path)	#返回文件名
+os.path.exists(path)		#若路径path存在，则返回True；否则返回False
+os.path.realpath(path)	#返回path的真实绝对路径
+os.path.getatime(path)	#返回最近访问时间(浮点、秒)
+os.path.getmtime(path)	#返回最近修改时间
+os.path.getsize(path)	#返回文件大小，若文件不存在则返回错误
+os.path.isdir(path)		#判断该路径是否为目录
+os.path.isabs(path)		#判断是否为绝对路径
+
+
+
+
+
+
+正则表达式：
+re.match() 从起始位置开始匹配，若从起始开始匹配失败，则返回None.
+re.math(pattern,string,flags=0)
+
+---------s3------------
+import  re
+pat1=r'asdw'  #不加r也行，最好加上；r表示将后面的全当作普通字符，即不会转义，当作原型；u表示当作unicode字符；b表示当作二进制
+str1='asdwdfgdasdwvbdfgf'	
+q1 = re.match(pat1,str1)
+print(q1,type(q1))
+------------e3---------
+如：w2=r"\n\nsaddsfdfgfdg\n\n" 则表示全当作普通字符输出
+若没r，输出w2则会换行。
+
+
+
+group(3)
+groups()
+如：
+q=re.match(pat1,str1) #返回相当于一个列表类型。q.group(0)或q.group()即取第一个
+
+
+
+re.search(pat1,str1) #扫描整个字符串并返回第一个成功的匹配
+re.findall(pat1.str1) #扫描全部，并返回一个包含所有子串的列表，若无，则返回空列表。
+re.finditer(pat1,str1)##扫描全部，并返回一个迭代器
+如：若q为迭代器，可能需如此调用    q.__next__()
+
+
+re.split(pat1,str1) #以匹配的正则为分隔符将str1进行切割
+
+compile函数用于编译正则表达式，返回一个正则表达式对象，供search()和match()函数使用。
+如：pat1 = re.compile(r'\d+')
+z = pat1.match('asd745ndfd934zsdf') #match从头部开始匹配，返回第一个匹配。若头部匹配失败，直接返回None.
+z2 = pat1.search('asd745ndfd934zsdf') #返回第一个匹配，即使在中间也可以。
+print (z)
+
+match()和search()对应的为group()函数。
+
+正则表达式加上()则表示取出的是()内的，即分组。
+正则加r表示里面的全当作普通字符，是什么就是什么，取消特殊功能，当作abcd一样处理即可。故一般都不需加\，且建议都使用r选项。
+
+
+
+
+
+
+并行：任务数<=cpu核数。真的同时。
+并发：交替处理多个任务，通过各种调度算法，实现看似同时执行的操作。
+
+
+进程：系统分配资源和调度的基本单位。一般一个进程包含多个线程。
+线程：操作系统能进行运算调度的基本单位，是进程中的实际运作单位。
+协程：用户态的轻量级线程，是单线程下的并发。 协程可以被用户控制。
+
+线程之间资源共享。
+
+
+队列的单位是进程。进程与进程之间可以通过队列进行通信。
+------------------------------s5-------------------------
+from multiprocessing import Process #导入进程对应的库或函数等
+#创建进程：
+p1 = Process(target=run1) #将Process理解为一个函数 输入对应的参数(为函数类型)，只需输入函数名即可。返回一个进程对象。
+p2 = Process(target=music1)
+
+开始运行进程：
+p1.start()
+p2.start()
+-----------------------------e5-------------------------------
+
+
+生产者和消费者。进程之间通过Queue进行通信。
+其中它们生产和消费的时间可能每次运行都不一样。
+队列：先进先出。
+
+Queue.get_nowait()：相当于Queue.get(False)，即不等，直接拿，即block=False，没锁住。
+队列存取数据默认都会加锁的。
+
+
+
+进程池：
+异步：你做你的，我做我的，互不影响，理解为同时执行，效率更高。
+同步：你做完了，给到我结果，我才能进行下一步，不独立，理解为非同时执行。
+
+------------------------1s----------------
+zinp2='asdkgffdgfhkkdsmfsdf'
+poolz1 = multiprocessing.Pool(processes=4)    #创建一个容量为4个进程的进程池，返回一个进程池对象 poolz1
+jccshuchu1 = poolz1.apply(zxhanshu1, (zinp2,))   #即对该进程池初始化操作：  返回一个对象。
+#此例设置：该进程池里面的进程都调用或运行同一个函数，传入的参数应该大部分类型都可以，取调用zxhanshu1函数，
+#其函数有没有return无所谓，我觉得就相当于把多个进程给封装了。
+-------------------------1e---------------
+
+
+最常用多线程。尽量用多协程、多线程。
+global关键字主要用于在函数内却需要引用外部的全局变量。
+
+CPU密集型：以消耗cpu资源为主，需进行大量的计算。使用进程，高并发可考虑使用多进程+协程。
+IO密集型：cpu消耗较少，大部分时间在等待IO操作完成，如磁盘、网络操作。使用协程或线程。
+
+TCP和UDP：都分客户端和服务端。
+
+代码简洁：不需要的就一定不要。
+===============71e==========
+done.
+
+第七十五节：编程基础、网络爬虫。
+==============75s=============
+套接字：ip+port
+
+tcp服务器accept()一直阻塞到客户连接到达。
+HTTP都把TCP作为底层的传输协议
+
+
+爬虫：是一种按照一定的规则，自动的抓取网络信息的程序。
+百度等搜索引擎主要是建立对目标的索引。
+
+通用爬虫和聚焦爬虫。
+
+爬虫与反爬。
+ 
+
+聚焦爬虫：
+1.文本等数据。
+	a.目标调用的接口(ajax异步)
+	b.页面提取。
+2.二进制等数据(如视频)。
+	a.接口(可能带有下载地址)
+	b.页面提取。
+
+
+接口一般都在XHR(异步)处，一般是json格式。
+ctrl+u 查看网页源码
+
+
+eg1：https://www.enterdesk.com/bizhi/63785-347084.html
+元素定位到图片，直接看到接口信息。
+q2 = re.findall(r'src="(.*.jpg)?"', req3.text)
+
+反爬				绕过
+通过UA判断是否为机器人		伪造UA
+ip、请求间隔			伪造
+字体反爬
+有的接口等只能使用一次
+或服务器添加一些自定义的请求参数
+
+
+requests中文官方文档：
+https://docs.python-requests.org/zh_CN/latest/
+
+debug python代码，单步调试。
+
+
+https://curl.trillworks.com	//代码格式化站点，能直接转为python请求等。
+
+
+
+
+数据提取方式：
+re、bs4、xpath
+
+
+
+爬虫：
+绕过反爬：
+Referer、UA、参数加密、验证码、请求阈值。
+
+
+数据处理：
+一般写入数据库：mysql、redis、mongodb.
+处理方式：RE、XPATH、BS4
+非关系型数据库主要是以键值方式存储，能存多媒体文件。
+
+
+
+盗链：原本应该A服务提供者在自己的服务器上存放资源，再给访客提供服务；然而其通过技术等手段使得自己成为一个中间人，盗取服务器B的资源却在自己的服务器界面上展示给访客，目的是为了减轻自己服务器的负担，相当于免费获取一个存储服务器。
+
+
+赋值请求包，直接转为其他代码请求：
+https://curl.trillworks.com/
+
+json.loads()	#将json对象转为python对象
+json.dump()	#将python对象转为json对象
+
+
+#显示字典元素。
+dict3 = {'key1':'value1','key2':'value2','key3':'value3','key4':'value4'}
+for k,z in dict3.items():	#迭代每一个元素
+    print(k,":",z)
+
+
+Cookie保存在客户端；Session保存在服务器端。
+
+
+Beautiful Soup 是一个可以从HTML或XML文件中提取数据的Python库.
+
+
+
+python与mysql等数据库的交互：
+
+
+mysql本身就具有事务这个属性，一般的关系型数据库都有。是其本身设计所致。
+
+
+js渲染：
+即第一步得到服务器的响应是一个外壳或框架，再经过js的ajax请求数据，填充进框架内，显示完整。
+若是js渲染，则在XHR部分能看到有加载数据、ajax请求等。
+若拿到的是空壳，则很可能是js渲染。
+
+.*?	表示最多匹配一次，非贪婪模式
+
+
+正则在线测试：
+https://regex101.com/
+
+poc：验证漏洞。
+exp：利用漏洞。
+
+
+
+
+w1 = re.search(pat1,q2)
+
+if w1 == None:
+    print("yes1")
+直接根据返回是不是None来判断是否找到。
+
+
+poc编写原则：
+1.低误报,宁愿少报，也不要误报。 使用随机参数。
+如：sql注入：
+select hex('asdwd  asd');select md5('sadkw d ad sa dwdz');
+去判断响应中是否存在。尽量使用随机参数。
+cmd.exe /c calc.exe
+
+
+2.无害性。
+3.通用性。
+
+
+poc检测方式：
+1.代码执行：phpinfo()、print()、echo
+2.命令执行：ping(icmp)、Nslookup(dns记录)。主要是为了判断是否真正有执行。
+nslookup zdwpzm.dnslog.cn
+ping zdwpzm.dnslog.cn
+都行。
+
+3.sql注入：md5()
+4.XSS：console.log()、alert()
+
+
+poc检测逻辑：
+1.有回显：直接判断响应即可。
+2.无回显：通过延时、dnslog等 带外判断。
+
+
+NS记录：即域名服务器记录，指定该域名由哪个DNS服务器来解析。
+A记录：指定域名对应的ip地址。
+
+
+dnslog原理：
+攻击者A搭建了一个DNS服务器Z，且建立了一个NS记录，如www.evil.com则由它自己来解析。
+当靶机B将www.evil.com交由DNS服务器时，dns服务器会再转交给dns服务器Z，则Z服务器就获取到了B的请求数据。
+

@@ -1,0 +1,332 @@
+wireshark支持很多协议，多层捕获。管理员运行。
+前置过滤器对网卡过滤，应用过滤对具体流量包过滤。burp主要是基于应用层。
+捕获：设置过滤包：eg1：host www.falsespace.com
+
+frame:物理层的数据帧信息
+ethernet II：数据链路层 以太网头部信息
+internet protocal：ip网络层 ip包头部
+transport：传输层的数据段头部 tcp/udp
+hypertex：http协议等，应用层协议。
+
+类型：host、port、net
+协议：http、arp、udp、
+方向：src、dst(终)、addr(两者之一)
+&&    || 或     !非
+    
+基本上走的都是同一块物理网卡。 协议名必须小写。
+使用packet_capture或burp或httpcarry(却不能抓https)抓包，看来回ip和主机信息。再过滤。
+发现host：hmma.baidu.com
+eg1：ip.src==192.168.43.132
+tcp.port    tcp.srcport    tcp.dstport
+http.request.uri=="/login.php" 如GET后面的部分，必须匹配全，不能只写一部分。
+http.request.method=="POST"
+http contains "sqlmap" 指http请求中包含sqlmap关键字的包
+
+eth.src    eth.dst    eth.addr 筛选MAC地址.
+
+udp.length==20
+tcp.len>=20
+
+特殊值可以右键作为特征 选中 过滤.
+
+
+
+tcpdump：能将数据包相当于下载下来离线分析。
+tcpdump option protocol(arp、tcp等) dir(src、dst、src or dst) type(host、net、port、portrange)
+-i 指定网卡
+net指定网段。eg1：tcpdump 129.168.6.0/24 捕获该网段流量。
+
+ether协议：局域网协议，一般全双工。
+
+tcpdump学习笔记：参考https://github.com/mylxsw/growing-up/blob/master/doc/tcpdump%E7%AE%80%E6%98%8E%E6%95%99%E7%A8%8B.md
+导出文件能给wireshark处理。 
+
+常用选项：
+-i any 监听所有的网卡接口，用来查看是否有网络流量
+-i eth0 只监听eth0网卡接口
+-D 显示可用的接口列表
+-n 不要解析主机名，直接显示ip
+-nn 不要解析主机名或者端口名，显示ip和port
+-q 显示更少的输出(更加quiet)
+-t 输出可读的时间戳
+-tttt 输出最大程度可读的时间戳，常用
+-X 以hex和ASCII两种形式显示包的内容
+-XX 与**-X**类似，增加以太网header的显示
+-v, -vv, -vvv 显示更加多的包信息
+-c 只读取x个包，然后停止
+-s 指定每一个包捕获的长度，单位是byte，使用-s0可以捕获整个包的内容
+-S 输出绝对的序列号，一般需要配合-v才行。
+-e 获取以太网header
+-E 使用提供的秘钥解密IPSEC流量
+
+三种主要的表达式类型：type，dir，proto。
+类型（type）选项包含：host，net，port
+方向（dir）选项包含：src，dst
+协议（proto）选项包含：tcp，udp，icmp，ah等
+
+
+捕获所有流量：
+tcpdump -i any
+
+指定网卡接口：
+查看指定网卡上发生了什么
+tcpdump -i eth0
+
+原生输出：
+查看更多的信息，不解析主机名和端口号，显示绝对序列号，可读的时间戳
+tcpdump -ttttnnvvS
+
+查看指定IP的流量
+最常见的方式，这里只查看来自或者发送到IP地址1.2.3.4的流量。
+tcpdump host 1.2.3.4
+
+查看更多的包信息，输出HEX：
+当你需要查看包中的内容时，使用hex格式输出是非常有用的。
+tcpdump -nnvXSs 0 -c1 icmp
+
+使用源和目的地址过滤
+tcpdump src 2.3.4.6
+tcpdump dst 3.4.5.6
+
+过滤指定端口相关的流量
+tcpdump port 3389
+tcpdump src port 1025
+
+过滤指定协议的流量
+tcpdump icmp
+
+使用端口范围过滤
+tcpdump portrange 21-23
+
+基于包的大小过滤流量
+tcpdump less 32
+tcpdump greater 64
+tcpdump <=128
+
+将捕获的内容写入文件
+使用-w选项可以将捕获的数据包信息写入文件以供以后分析，这些文件就是著名的PCAP(PEE-cap)文件(.pcap文件)，很多应用都可以处理它。
+tcpdump port 80 -w capture_file
+使用tcpdump加载之前保存的文件进行分析
+tcpdump -r capture_file
+
+过滤指定源IP和目的端口
+tcpdump -nnvvS src 10.5.2.3 and dst port 3389
+
+过滤指定网络到另一个网络
+比如下面这个，查看来自192.168.x.x的，并且目的为10.x或者172.16.x.x的所有流量，这里使用了hex输出，同时不解析主机名
+tcpdump -nvX src net 192.168.0.0/16 and dst net 10.0.0.0/8 or 172.16.0.0/16
+
+过滤到指定IP的非ICMP报文
+tcpdump dst 192.168.0.2 and src net and not icmp
+
+过滤来自非指定端口的指定主机的流量
+下面这个过滤出所有来自某个主机的非ssh流量
+tcpdump -vv src mars and not dst port 22
+
+括号在shell中会被错误的解析，可以对括号使用\进行转义或者使用单引号
+eg1：tcpdump 'src 10.0.2.3 and (dst port 3389 or 22)'
+
+也可以使用下面这种方式来捕获指定TCP标识的流量
+tcpdump 'tcp[tcpflags] == tcp-syn'
+tcpdump 'tcp[tcpflags] == tcp-rst'
+tcpdump 'tcp[tcpflags] == tcp-fin'
+
+识别重要流量：
+过滤同时设置SYN和RST标识的包（这在正常情况下不应该发生）
+tcpdump 'tcp[13] = 6'
+
+过滤明文的HTTP GET请求
+tcpdump 'tcp[32:4] = 0x47455420'
+
+通过横幅文本过滤任意端口的SSH连接
+tcpdump 'tcp[(tcp[12]>>2):4] = 0x5353482D'
+
+过滤TTL小于10的包（通常情况下是存在问题或者在使用traceroute）
+tcpdump 'ip[8] < 10'
+
+过滤恶意的包
+tcpdump 'ip[6] & 128 != 0'
+
+过滤所有与8080端口相关的tcp流量，将其输出到capcha.cap文件中，我们可以使用wireshark打开这个文件，更加可视化的分析过滤其中包含的http流量。
+tcpdump -tttt -s0 -X -vv tcp port 8080 -w captcha.cap
+
+
+
+wireshark擅长TCP、UDP等协议。burp等工具擅长http、https等应用层协议抓包。
+wireshark有时抓不到包？ 可能需要导入https证书。但我觉得证书应该只影响加解密而已。
+抓http、https等最好用fiddler(js等hook更强大)或burp抓。
+若直接使用tcp等协议通信，就用wireshark.
+
+常见问题：
+1.挂上代理，app出现网络异常等。
+A：加载SSLpinning模块。
+B：若去掉代理就能正常，可能是严重了代理。
+sslpinning：即双向认证证书，apk只信任系统证书，不信任其他第三方证书。客户端会首先验证服务器端发来的证书与自己内置的证书进行对比，
+	若在白名单里，则发数据；否则不发。绕过：hook绕过app证书校验的代码，或修改为系统证书安装进去。
+
+
+windows下为python3安装类似Crypto模块：
+1.直接安装安装Crypto模块 会报错，故需要先安装Microsoft Visual C++ 9.0 
+python3 -m pip install --upgrade pip  更新pip
+
+
+
+确定apk是否有加固：开发者助手->提取apk，保存->进入保存目录->点击apk，就能看到是否加固。
+
+参数->看是否有%或=或md5，若是常见算法，结束；若不是->APK是否加固->若加固，去壳；没加固，反编译 加固包括加壳、混淆等->jadx可以反混淆；若没加固，则定位参数
+->如关键词搜索(url或数据部分的)、算法定位(DES、AES、md5等)->校验算法是否正确->实现算法。
+
+
+sqlmap使用教程：
+
+cookie注入：
+--level 2 //level 3时，会测试User-Agent和Referer。
+--cookie "id=1" 设置cookie的参数
+表单注入：
+--data "username=1$passwd=1" 相当于post的参数
+
+伪静态注入：
+-u "url/index/1*.html"
+
+json注入：[{"id":["int"]}]
+-u "url" --data="{"id":["int*"]}"
+	或--data='{"id":"int"}'
+	-r log.txt
+
+注入步骤：
+sqlmap -u "url" 确定是否存在注入
+	--dbs 确定数据库内容
+	--tables -D 数据库名    //枚举表名
+	--columns -D 数据库名 -T 表名 //枚举字段
+	--dump -D 数据库名 -T 表名  -C "字段名1，字段名2，字段名3"  //dump字段内容
+
+常用参数：
+--is-dba	查看是否为dba权限
+--current-db 枚举当前数据库名
+--users 枚举用户名
+--password 枚举密码
+--privileges 查看当前用户权限
+--privileges -U testz 查看testz用户的权限
+--os-shell  交互的系统shell,原理：上传相应语言的马. 一般需要知道绝对路径和有权限。
+--os-cmd   执行os命令
+--dbs  枚举所有数据库
+--tables 枚举表名
+--tamper 设置tamper(脚本)
+--proxy "http或socks" //设置代理
+-p 指定注入参数
+--dbms 指定数据库类型
+--hex 使用16进制;数据库底层存储就是16进制。它一般能直接接收16进制。
+--batch 不询问，使用默认的
+--retries 失败后再请求几次
+
+--output-dir 设置输出路径
+--dump-format 设置导出的数据格式
+-r 指定注入文件
+--sql-shell  //sql shell
+--random-agent //随机UA
+--time-sec //指定注入延时时间，默认–time-sec=5 为5秒
+--cookie 指定cookie
+--smart  //一般配合--batch 有时对目标非常多的URL进行测试，为节省时间，只对能够快速判断为注入的报错点进行注入，可以使用此参数。
+--mobile 模拟手机环境，
+-m 指定多个url注入文件//如a.txt里面很多个url目标，url目标即可。常配合--smart --batch
+ 
+--os-shell 原理：
+sqlmap的--os-shell在mysql数据库中的原理，其实就是往服务器上写入了两个shell。
+其中一个给我们提供了一个文件上传的页面，可以通过这个上传页面上传脚本文件到当前目录下；
+另外一个则是返回了一个可以让我们执行系统命令的命令行的shell，命令行也可以在网页url中通过对cmd参数传参执行系统命令。
+
+
+--start 1 --stop 6	#从第1条数据开始爬，到第6条。
+
+sqlmap读文件：
+secure_file_priv="E:/"  则只能读写E盘下的文件。
+secure_file_priv= 	则全能读
+secure_file_priv=""   则全能读
+secure_file_priv=NULL  则全不能读
+一般首先用户需要有对应的权限，如root.
+
+读写文件一个特别重要的问题或bug：
+即使满足读写的权限，但若上次因为你读如a.txt失败，然后你现在有权限可以读了，但还是会读取失败。
+原因：多半是sqlmap会记住上次的记录。
+解决：将其重命名或复制到另一个位置。
+
+
+读取文件：
+--file-read="E:/wlla/WWW/php.ini" 
+受secure-file-priv影响，还受NTFS权限影响，说白了，就是是否有权限。
+
+
+读写成功的条件：
+1.有权限。符合secure_file_priv设置，它非NULL
+2.为完整路径.
+3.若上次读该文件失败，则需要将其重命名或复制到另一个位置，再读写该新的文件。
+
+
+outfile和load_file()函数 导出数据
+secure_file_priv设置：一般>=5.7才有
+	若为空(看前面的)，则无限制
+	若为目录名，则导入导出仅为该目录中的文件。该目录必须存在，服务器不会创建它。
+	若为NULL，则禁止导入导出。
+位置：
+win:修改my.ini 在[mysqld]内加入secure_file_priv=
+linux:修改my.cnf 在[mysqld]内加入secure_file_priv=
+重启mysql
+
+
+
+sqlmap写入数据或shell：
+sqlmap -r z.txt --file-write="C://Users//zp.php" --file-dest="E://wdaz/WWW/pzqz.php"
+或者C:\w\z.txt 此种格式。
+
+--sql-file=SQLFILE //从给定文件执行sql语句(eg: --sql-file=q.txt)
+
+
+--file-dst 指定目标文件地址
+--file-write 指定本地文件地址
+成功。
+
+--prefix=asdw   	//设置注入前缀 或"asdw"
+--suffix=wz	//设置注入后缀
+
+控制sqlmap发包速度：
+--delay=DELAY  //--delay 1 则1秒
+--delay 3 		//表示延时3s(即发包速度)
+--time-sec	3 	//设置时间盲注时的延时值为3s
+--timeout 10.5 --retries 10 	//设置目标站点响应的超时时间为10.5s，重连次数为10.
+--chunked 分块传输，即一个数据包分块传输，绕过waf等。
+
+常用脚本：
+base64encode.py
+space2plus.py	用+替换空格
+
+编写tamper：
+1.设置插件等级 如__priority__ = PRIORITY.LOW
+2.具体实现。
+
+
+
+eg1：
+md5加密标准格式：md5解密只能靠碰撞。一般默认不可逆。
+payload2 = hashlib.md5(payload.encode('utf8')).hexdigest()
+这样一般就不需要from hashlib import md5了。
+=========md5_tamper========
+#!/usr/bin/env python
+from lib.core.enums import PRIORITY
+from hashlib import md5
+
+__priority__ = PRIORITY.LOW
+def dependencies():
+    pass
+def tamper(payload, **kwargs):
+    payload2 = md5(payload.encode('utf8')).hexdigest()
+    '''
+    .hexdigest()是规定格式，这样出来的格式才是符合的。
+    '''
+    return payload2 if payload else payload
+=======e=============
+
+web service服务：web service利用SOAP和XML对很多特殊对象模型协议作进一步扩展以消除障碍。
+其主要利用http和SOAP协议让数据在web上传输。SOAP通过http调用对象执行远程功能调用。
+web用户使用SOAP和http通过web方式调用远程对象。
+
+sqlmap不能对web services服务进行注入，因为其使用的是SOAP协议。

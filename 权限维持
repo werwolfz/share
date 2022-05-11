@@ -41,6 +41,64 @@ http://tool.chinaz.com/Tools/dwz.aspx
 打开web log-->查看到键盘记录。 但好像不能通过此方式获得session.
 一般钓鱼网站只能获得敏感信息什么的。
 
+pte	pts
+windows账号安全。
+账户：
+1.本地账户：作用范围仅限于创建它的计算机，用于控制用户对该台计算机资源的访问。
+2.全局账户(域用户账户)：全局账户创建于服务器(域控制器)，作用范围是整个网络，能登录网络上的任意计算机。
+前提：计算机必须先加入域环境。
+
+创建本地用户：windows一般不区分大小写
+net user usernamez passwdz /add	//新建用户
+net user usernamez  /del		//删除用户
+net user usernamez passwdz 	//更改该用户的密码
+net user usernamez 		//查看该用户属性
+net user usernamez  /active:yes	//激活该用户
+
+用户默认一般处于workgroup(域里的概念)和Users组(本地里的概念)。
+
+
+net user q3$ /add		//创建隐藏账户q3，net user看不到，但管理->用户能看到。
+
+
+
+windows NT系统使用安全标识符SID来跟踪每个账户，SID永远不会更改。
+查询：
+whoami /user或sc showsid server
+wmic useraccount get name,sid	//查看所有的账户名和对应的SID
+
+账户克隆：即通过修改注册表，使得一个普通用户能具有与管理员一样的权限。
+HKEY_LOCAL_MACHINE\SAM\Domains\Account\Users\下的子键。
+即复制一份管理员的该子键。
+
+net user test1$ passwd1 /add
+net user
+
+regedit：打开注册表。
+SAM右键权限-->完全控制。
+Administrator对应的是0x1f4
+导出0x1f4注册表文件C。
+导出test1$的注册表(包括其对应的如0x3ed的注册表A和Names下的test1$的注册表B)-->
+删除该账户(net user test1$ /del)-->若在Users\和Names\下有该用户对应的项，则先删除。
+编辑注册表，复制C的F的键值，覆盖A的F的键值，保存。
+再导入注册表到对应的位置(左键单击同层的项，导入，再检查一次)，更好的隐藏。用户不重启就很难发现。
+
+
+导入注册表：
+单击同级别的项->左上角文件，导入-->导入A；同理导入B即可。
+验证：net user test1$
+受害者通过net user和管理->用户 都无法发现该用户，重启一般会失效。
+若要允许其远程登录，则需将其加入远程登陆组(name：Remote Desktop Users)。
+eg：C:\>net localgroup "Remote Desktop Users" Guest /add
+将Guest用户加入远程登录组。利用方式之一：克隆Guest账户或隐藏账户。
+
+net user Guest /active:yes	//启用Guest账户
+net user Guest /active:no	//禁用Guest账户
+
+防御：
+1. 看注册表。
+2. 开启登录事件审核：即所有的包括隐藏账户的登录都有记录。
+
 
 
 

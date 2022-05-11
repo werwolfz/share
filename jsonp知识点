@@ -1,0 +1,57 @@
+
+jsonp跨域：只支持GET请求.
+浏览器的同源策略禁止跨域请求，但<script>、<img>、<iframe>标签例外.
+jsonp跨域即利用<script>标签进行跨域数据传输.
+eg1：
+server端：
+--------1s---------------------
+package y.u.s.jsonp.servlet;
+import com.alibaba.fastjson.JSONObject;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+/**
+ * Created by wangwenjin on 2017/3/1.
+ */
+public class JsonpServlet extends HttpServlet {
+
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        String callback = req.getParameter("callback");
+        resp.setCharacterEncoding("UTF-8");
+        JSONObject jo = new JSONObject();
+        jo.put("Result","remote return value");
+        System.out.println(jo.toJSONString());
+        System.out.println(jo.toString());
+        resp.getWriter().print(callback + "(" + jo.toJSONString() + ");");
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        doGet(req, resp);
+    }
+}
+-----------1e----------------
+
+client端：函数A定义在客户端，传递给服务器一个函数名(A)，服务器端收到后将real data传回到客户端，客户端执行该回调函数A.
+-----------1s----------------
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title></title>
+    <script type="text/javascript">
+        var localHandler = function(data){
+            alert('i am local fun，can be called by remote server，remote server return data ：' + data.result);
+        };
+        var url = "http://localhost/jsonpServlet?callback=localHandler";
+        var script = document.createElement('script');
+        script.setAttribute('src', url);
+        document.getElementsByTagName('head')[0].appendChild(script);
+    </script>
+</head>
+<body>
+</body>
+</html>
+-----------1e----------------

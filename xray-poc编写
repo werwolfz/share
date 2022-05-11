@@ -1,0 +1,87 @@
+poc编写步骤：
+1.准备对应环境(或靶场)
+2.复现成功(确定payload)
+3.确定poc检测逻辑(如：有无回显)
+4.确定编程语言(python、java);确定poc运行环境、是否依赖框架或组件或第三方库等。
+5.实现poc代码
+6.优化poc代码.
+
+
+
+xray_poc模块编写：
+poc格式为：yaml格式，即json的高级版。  特殊字符不需转义。
+
+
+辅助网站：
+https://phith0n.github.io/xray-poc-generation/
+
+
+
+常用函数：
+bcontains用于匹配bytes是否包含。若要匹配string的包含，则使用：contains
+如：
+response.body.contains("jqsonzasdwz")
+response.body.bcontains(b'jqsonzasdwz')	#此body是一个bytes型变量。
+
+
+编写借助反连平台的poc：
+
+
+扫描子域名：
+.\xray_windows_amd64_protected.exe subdomain --target example.com --html-output q1.html [--web-only或--ip-only或空]
+
+
+xray使用文档：
+https://docs.xray.cool/#/configration/cli
+
+
+1.仅加载C:\asdw\q\下的所有pocs文件(yml文件)进行webscan扫描。
+xray.exe webscan phantasm --poc 'C:\asdw\q\*' --url http://asdw.com --html-output q1.html
+2.加载某一个poc：
+xray.exe webscan phantasm --poc w1.yaml --url http://asdw.com --html-output q1.html
+
+
+注：在编写插件时注意\ 若字符里有\则需使用\\将其替换。
+
+
+若配置反连平台，则需在配置文件的dns处设置为true才行。
+然后配置listen_ip: 127.0.0.1 或其他反连平台。
+
+nslookup www.baidu.com 114.114.114.114 #表示查询两条。
+
+
+
+写插件时最好统计理解为输入的url格式为：http[s]://ip:port
+如：
+http://192.168.54.6:8086
+然后path都已/开头。
+
+
+burpsuite可能回自动在'Accept-Encoding': 'gzip,deflate'中添加空格，如：
+'Accept-Encoding': 'gzip, deflate',
+不必理会，不走代理则一样走的是自己设置的值。
+
+
+
+
+
+
+
+python3虚拟环境：
+若只安装有python3，则所有第三方的包都会被pip安装至python3的site-packages下。
+
+virtualenv或env：为应用创建一套隔离的python运行环境。
+
+使用python的venv工具创建虚拟环境：[推]
+apt install python3.9-venv
+python3 -m venv test1_env  
+
+启用虚拟环境：
+source test1_env/bin/activate   //则进入到虚拟环境中
+deactivate  //关闭虚拟环境
+
+
+
+eg1：
+pip3 install pwn
+则安装的包都在test1_env/lib/python3.9/site-packages下。

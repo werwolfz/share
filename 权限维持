@@ -1,0 +1,46 @@
+
+维权主要方式：
+dll劫持；注册表添加启动项；定时任务；sc服务[即添加服务]的方式；或放开始菜单启动文件夹下。
+windows server.exe的payload一般用于权限维持。
+
+
+
+
+windows executive Stager-->Windows server exe-->服务的方式，主要用于维权。
+权限维持前提，本身就是高权限[管理员权限或system权限]。
+
+
+服务.exe 一般最好放在一些临时目录下。
+cmd管理员执行：
+#sc create Uzpdate binpath= "服务后门绝对路径" start= auto displayname= "zPlugins Transfer Serviceq"  //创建系统服务，注意有空格.
+eg： sc create Uzpdate binpath= "C:\Users\z\AppData\Local\Temp\fuwuz.exe" start= auto displayname= "zPwdlugins Transfer Servicwde"
+
+#sc start Uzpdate	//启动该服务
+#sc stop Uzpdate	//停止该服务
+#sc delete Uzpdate	//删除该服务 
+上线成功，发现是系统权限。
+
+
+web Drive-by:
+clone site：克隆网站. 钓鱼。
+host部分一般放相似的自己养的域名，或ip.
+port为对应的端口。
+Attack：一般为后门web的c2链接，即规定对方访问后要执行的动作，流程：
+-->对方访问相似站点，输入账号密码，被键盘记录下来，对方回车或点击事件等方式触发后门链接(或绑定后门，应该可以实现一访问就自动的下载并运行吧。)，下载并直接运行，获得session，再给他转到正确的链接。 
+
+eg：将https://admin.feieyun.com/login.php[要克隆的目标站点]放在clone url-->local url[表示本地网站克隆或显示路径]放/login.php-->local host放相似的域名或c2的ip-->port放对应的端口-->
+先主动创建一个scripted web dilivery(S) 选择listener 一般设beacon类型的reverse_http-->开启键盘记录-->
+得到http://192.168.43.48:8063/login.php站点。
+
+
+
+生成短链接：
+http://tool.chinaz.com/Tools/dwz.aspx
+短链接可以带上自己的木马附件、邮件什么的。 短链接让对方访问。
+
+打开web log-->查看到键盘记录。 但好像不能通过此方式获得session.
+一般钓鱼网站只能获得敏感信息什么的。
+
+
+
+

